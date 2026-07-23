@@ -261,6 +261,13 @@
   .save-msg.ok { color: var(--green); }
   .btn.save-danger { background: #b06bff; border-color: #7a3fd0; box-shadow: 0 4px 0 #7a3fd0; margin-top: 6px; }
   .btn.save-danger:active { box-shadow: 0 1px 0 #7a3fd0; }
+  .save-input {
+    display: block; width: 100%; font-family: inherit; font-size: 13px;
+    padding: 8px; border: 2px solid var(--dark); background: #f8f8f2;
+    margin-bottom: 8px; box-sizing: border-box;
+  }
+  #cloudCard { border-color: #4aa3ff; box-shadow: 4px 4px 0 rgba(74, 163, 255, .3); }
+  #cloudCard h2 { color: #1c6fd6; }
 
   .zgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
   .zcell { border: 2px solid var(--dark); background: #f2f7ef; text-align: center; padding: 6px 2px; font-size: 10px; }
@@ -417,6 +424,21 @@
         <ul class="towns" id="townList"></ul>
       </section>
 
+      <section class="card save-card" id="cloudCard">
+        <h2>☁️ クラウドセーブ</h2>
+        <div id="cloudDisconnectedBox">
+          <p>なまえとあいことばを決めると、セーブが雲の上にも保存されるよ。スマホでもパソコンでも同じつづきから遊べるし、キャッシュを消しても安心！</p>
+          <input type="text" class="save-input" id="cloudNameInput" placeholder="なまえ（1〜12文字）" maxlength="12">
+          <input type="text" class="save-input" id="cloudSecretInput" placeholder="あいことば（4文字いじょう）">
+          <button class="btn" id="cloudConnectBtn">☁️ つなぐ</button>
+        </div>
+        <div id="cloudConnectedBox" style="display:none;">
+          <p>☁️ 「<b id="cloudConnectedName"></b>」さんとして同期中だよ</p>
+          <button class="btn save-danger" id="cloudDisconnectBtn">同期をやめる</button>
+        </div>
+        <p class="save-msg" id="cloudMsg"></p>
+      </section>
+
       <section class="card save-card">
         <h2>💾 セーブのひきつぎ</h2>
         <p>ブラウザのキャッシュを消すと、セーブが消えちゃうことがあるよ。ひきつぎコードをコピーして、メモアプリなどに保存しておいてね。別のスマホやパソコンへのお引っ越しにも使えるよ。</p>
@@ -526,6 +548,105 @@
   };
 
   const SAVE_KEY = 'sasatomo-caravan-v1';
+
+  /* ============================================================
+   * クラウドセーブ（名前＋あいことば方式）
+   * 充電器の cloud-sync.js（Supabase / RPC save_game・load_game）をそのまま踏襲。
+   * app名だけ 'sasatomo-caravan' に変えて同じバックエンドを共用する。
+   * 参考: C:\Users\pikap\Claude\cowork\mei-panda-hisho\charger\cloud-sync.js
+   * ============================================================ */
+  const CloudSync = (function () {
+    const CLOUD_CONFIG = {
+      url: 'https://bpqrvmredwixhrjpcsud.supabase.co',
+      anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJwcXJ2bXJlZHdpeGhyanBjc3VkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwNTQ0ODksImV4cCI6MjA5OTYzMDQ4OX0.F0s7j6E-28xh6LOQIBc1NtsPB5z17Kjpfo8D2AJ4voI',
+      app: 'sasatomo-caravan',
+    };
+    const CRED_KEY = 'caravanCloud';     // { nickname, secretHash }
+    const STORAGE_KEY = SAVE_KEY;        // 本体のセーブキーと同じものを使う
+
+    function enabled() { return !!(CLOUD_CONFIG.url && CLOUD_CONFIG.anonKey); }
+
+    async function sha256Hex(str) {
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+      return Array.from(new Uint8Array(buf)).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+    }
+    // あいことばは app名+なまえ を混ぜてハッシュ化してから送る（生のあいことばは保存・送信しない）
+    async function hashSecret(nickname, secret) {
+      return sha256Hex(CLOUD_CONFIG.app + '|' + nickname + '|' + secret);
+    }
+
+    function getCred() {
+      try { return JSON.parse(localStorage.getItem(CRED_KEY)) || null; } catch (e) { return null; }
+    }
+    function saveCred(nickname, secretHash) {
+      localStorage.setItem(CRED_KEY, JSON.stringify({ nickname: nickname, secretHash: secretHash }));
+    }
+    function clearCred() { localStorage.removeItem(CRED_KEY); }
+
+    async function rpc(fn, body) {
+      const res = await fetch(CLOUD_CONFIG.url + '/rest/v1/rpc/' + fn, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': CLOUD_CONFIG.anonKey,
+          'Authorization': 'Bearer ' + CLOUD_CONFIG.anonKey,
+        },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error('rpc ' + fn + ' ' + res.status);
+      const text = await res.text();
+      return text ? JSON.parse(text) : null;
+    }
+
+    // ---- 保存（デバウンスしてまとめて送る） ----
+    // 補足：この放置ゲームは1秒ごとの自動セーブが常に走り続けるため、charger版そのままの
+    // 「呼ばれるたびタイマーを延長する」方式だと連続プレイ中は永遠に発火しなくなってしまう。
+    // そのため「すでに予約中なら何もしない（最新データだけ更新して待つ）」方式にして、
+    // 実際に約1.5秒おきにまとまって送られるようにしている（挙動の趣旨は同じ＝送りすぎ防止）。
+    let pushTimer = null;
+    let lastData = null;
+    function schedulePush(saveObj) {
+      lastData = saveObj;          // 最新の記録は常に保持しておく
+      if (!enabled()) return;
+      if (!getCred()) return;      // あいことば未設定なら送信はしない
+      if (pushTimer) return;       // すでに送信予約中
+      pushTimer = setTimeout(function () { pushTimer = null; pushNow(); }, 1500);
+    }
+    async function pushNow(dataObj) {
+      if (!enabled()) return;
+      const cred = getCred();
+      if (dataObj) lastData = dataObj;
+      if (!cred || !lastData) return;
+      try {
+        lastData._syncedAt = new Date().toISOString(); // last-write-wins 用の目印
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(lastData)); // _syncedAtをローカルにも反映
+        await rpc('save_game', {
+          p_app: CLOUD_CONFIG.app,
+          p_nickname: cred.nickname,
+          p_secret_hash: cred.secretHash,
+          p_data: lastData,
+        });
+      } catch (e) { /* ローカルは生きているので黙って諦める（次の保存で再送される） */ }
+    }
+
+    // ---- 読み込み（名前＋あいことばが合った記録を返す。無ければnull） ----
+    async function pull(nickname, secretHash) {
+      if (!enabled()) return null;
+      try {
+        const data = await rpc('load_game', {
+          p_app: CLOUD_CONFIG.app,
+          p_nickname: nickname,
+          p_secret_hash: secretHash,
+        });
+        return data || null;
+      } catch (e) { return null; }
+    }
+
+    return {
+      enabled: enabled, hashSecret: hashSecret, getCred: getCred, saveCred: saveCred,
+      clearCred: clearCred, schedulePush: schedulePush, pushNow: pushNow, pull: pull, config: CLOUD_CONFIG,
+    };
+  })();
 
   /* ============================================================
    * マスターデータ
@@ -740,6 +861,91 @@
     el.importMsg.textContent = 'ひきつぎ かんりょう！ ページを よみこみなおすよ…';
     el.importMsg.className = 'save-msg ok';
     location.reload();
+  }
+
+  /* ============================================================
+   * クラウドセーブ UI
+   * ============================================================ */
+  function renderCloudPanel() {
+    const cred = CloudSync.getCred();
+    if (cred) {
+      el.cloudDisconnectedBox.style.display = 'none';
+      el.cloudConnectedBox.style.display = '';
+      el.cloudConnectedName.textContent = cred.nickname;
+    } else {
+      el.cloudDisconnectedBox.style.display = '';
+      el.cloudConnectedBox.style.display = 'none';
+    }
+  }
+
+  async function handleCloudConnect() {
+    const name = (el.cloudNameInput.value || '').trim();
+    const secret = (el.cloudSecretInput.value || '').trim();
+    el.cloudMsg.className = 'save-msg';
+    if (name.length < 1 || name.length > 12) {
+      el.cloudMsg.textContent = 'なまえは1〜12文字で入れてね。';
+      el.cloudMsg.className = 'save-msg error';
+      return;
+    }
+    if (secret.length < 4) {
+      el.cloudMsg.textContent = 'あいことばは4文字いじょうにしてね。';
+      el.cloudMsg.className = 'save-msg error';
+      return;
+    }
+    el.cloudConnectBtn.disabled = true;
+    el.cloudMsg.textContent = '雲とおはなし中…';
+    el.cloudMsg.className = 'save-msg';
+    try {
+      const hash = await CloudSync.hashSecret(name, secret);
+      const remote = await CloudSync.pull(name, hash);
+      if (remote) {
+        const ok = window.confirm('クラウドに「' + name + '」さんの記録があったよ。よみこんで続きから遊ぶ？（いまのデータは上書きされるよ）');
+        if (ok) {
+          CloudSync.saveCred(name, hash);
+          localStorage.setItem(SAVE_KEY, JSON.stringify(remote));
+          location.reload();
+        } else {
+          el.cloudMsg.textContent = '';
+          el.cloudMsg.className = 'save-msg';
+        }
+      } else {
+        CloudSync.saveCred(name, hash);
+        await CloudSync.pushNow(state);
+        renderCloudPanel();
+        el.cloudMsg.textContent = 'とうろくできたよ！ ここからは自動でクラウドにも保存されるよ。';
+        el.cloudMsg.className = 'save-msg ok';
+      }
+    } catch (e) {
+      el.cloudMsg.textContent = 'つながらなかったよ…でんぱの状態を見てもう一度ためしてね。';
+      el.cloudMsg.className = 'save-msg error';
+    } finally {
+      el.cloudConnectBtn.disabled = false;
+    }
+  }
+
+  function handleCloudDisconnect() {
+    const ok = window.confirm('同期をやめるよ。いい？（クラウド側の記録はそのまま残るよ）');
+    if (!ok) return;
+    CloudSync.clearCred();
+    renderCloudPanel();
+    el.cloudMsg.textContent = '同期をやめたよ。またいつでもつなげるよ。';
+    el.cloudMsg.className = 'save-msg';
+  }
+
+  // 起動時：あいことば設定済みなら雲からも読んで、新しい方（_syncedAtが新しい方）を採用する
+  // ※ここは確認ダイアログを出さず、last-write-winsで静かに解決する
+  async function reconcileCloudOnBoot() {
+    const cred = CloudSync.getCred();
+    if (!cred) return;
+    const remote = await CloudSync.pull(cred.nickname, cred.secretHash);
+    if (!remote) return;
+    const remoteTime = remote._syncedAt ? new Date(remote._syncedAt).getTime() : 0;
+    const localTime = state._syncedAt ? new Date(state._syncedAt).getTime() : 0;
+    if (remoteTime > localTime) {
+      state = remote;
+      const d = defaultState();
+      Object.keys(d).forEach(function (k) { if (state[k] === undefined) state[k] = d[k]; });
+    }
   }
 
   /* ============================================================
@@ -980,7 +1186,9 @@
      'gachaOverlay', 'gachaGrass', 'gachaSkipBtn', 'gachaResult', 'gachaResultRank', 'gachaResultName',
      'gachaResultTalents', 'gachaResultFlavor', 'gachaResultNote', 'gachaCloseBtn',
      'exportShowBtn', 'exportBox', 'exportTextarea', 'exportCopyBtn', 'exportMsg',
-     'importShowBtn', 'importBox', 'importTextarea', 'importRunBtn', 'importMsg'
+     'importShowBtn', 'importBox', 'importTextarea', 'importRunBtn', 'importMsg',
+     'cloudCard', 'cloudDisconnectedBox', 'cloudConnectedBox', 'cloudConnectedName',
+     'cloudNameInput', 'cloudSecretInput', 'cloudConnectBtn', 'cloudDisconnectBtn', 'cloudMsg'
     ].forEach(function (id) { el[id] = q(id); });
   }
 
@@ -1406,18 +1614,25 @@
       el.importMsg.className = 'save-msg';
     });
     el.importRunBtn.addEventListener('click', runImportSaveCode);
+
+    el.cloudConnectBtn.addEventListener('click', handleCloudConnect);
+    el.cloudDisconnectBtn.addEventListener('click', handleCloudDisconnect);
   }
 
   /* ============================================================
    * 初期化
    * ============================================================ */
-  function init() {
+  async function init() {
     cacheEls();
     renderCloudIcon();
     state = loadState() || defaultState();
     // 欠けているキーの補完（旧セーブ互換）
     const d = defaultState();
     Object.keys(d).forEach(function (k) { if (state[k] === undefined) state[k] = d[k]; });
+
+    // クラウドに新しい記録があれば採用する（last-write-wins・確認ダイアログなし）
+    // ネット未接続やSupabase障害でも失敗を握りつぶして先に進む
+    try { await reconcileCloudOnBoot(); } catch (e) { /* 気にせずローカルで続行 */ }
 
     const now = Date.now();
     const prevLastSeen = state.lastSeen || now;
@@ -1427,6 +1642,7 @@
     state.lastSeen = now;
 
     renderAll();
+    renderCloudPanel();
     if (report) showReportCard(report); else el.reportCard.style.display = 'none';
 
     runtime.nextSpawnAt = now + rand(BALANCE.firstCloudMin, BALANCE.firstCloudMax);
@@ -1438,13 +1654,17 @@
         saveState();
       }
     }, BALANCE.friendTownIncomeInterval);
-    setInterval(function () { state.lastSeen = Date.now(); saveState(); }, BALANCE.saveIntervalMs);
+    setInterval(function () {
+      state.lastSeen = Date.now();
+      saveState();
+      CloudSync.schedulePush(state);
+    }, BALANCE.saveIntervalMs);
 
     bindUIEvents();
     saveState();
   }
 
-  window.addEventListener('DOMContentLoaded', init);
+  window.addEventListener('DOMContentLoaded', function () { init(); });
 })();
 </script>
 </body>
