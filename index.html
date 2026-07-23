@@ -560,8 +560,9 @@
 
   const IMG = 'assets/meimei_dot.png';
 
-  // もやもや雲の見た目はここ1箇所だけで管理する（Gemini画像が来たら type:'image', value:パスに変えるだけでOK）
-  const CLOUD_ICON = { type: 'emoji', value: '💭' };
+  // もやもや雲の見た目はここ1箇所だけで管理する（顔つきのGemini画像が来たらvalueのパスを変えるだけでOK）
+  // 現素材: DOTOWN「雲」(無料・商用可・加工可・クレジット不要) を紫グレーに加工したもの
+  const CLOUD_ICON = { type: 'image', value: 'assets/scene/moyamoya.png' };
   function chestIconPath(rarity) { return 'assets/icons/chest_' + rarity + '.png'; }
 
   /* ============================================================
@@ -911,7 +912,7 @@
   // もやもや雲の中身を描画（差し替えはCLOUD_ICON定数を変えるだけでここが吸収する）
   function renderCloudIcon() {
     const inner = CLOUD_ICON.type === 'image'
-      ? '<img src="' + CLOUD_ICON.value + '" alt="もやもや雲" style="width:44px;height:auto;image-rendering:pixelated;">'
+      ? '<img src="' + CLOUD_ICON.value + '" alt="もやもや雲" style="width:68px;height:auto;image-rendering:pixelated;">'
       : CLOUD_ICON.value;
     el.moyamoyaEl.innerHTML = inner + '<span class="label">もやもや雲</span>';
   }
