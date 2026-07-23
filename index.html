@@ -245,6 +245,8 @@
   }
   .party .total { font-size: 12px; margin: 8px 0 2px; }
   .party .total b { color: var(--green); font-size: 15px; }
+  .party .smile-force { font-size: 12px; margin: 2px 0; color: #b0473f; }
+  .party .smile-force b { font-size: 14px; }
   .party .formation { font-size: 11px; color: #7a3fd0; margin-bottom: 6px; }
   .party .btn.gacha { background: #b06bff; border-color: #7a3fd0; box-shadow: 0 4px 0 #7a3fd0; }
   .party .btn.gacha:active { box-shadow: 0 1px 0 #7a3fd0; }
@@ -375,7 +377,10 @@
   .boss-hpbar .fill { position: absolute; inset: 0; width: 100%; background: linear-gradient(90deg, #ff6b6b, #ff9d6b); transition: width .3s linear; }
   .boss-hpbar .boss-hptext { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #fff; text-shadow: 1px 1px 0 #000; }
   .boss-timer { font-size: 13px; margin-top: 6px; }
+  .boss-smileforce { font-size: 12px; color: #b0473f; margin-top: 2px; }
   .boss-hint { font-size: 11px; color: #666; margin-top: 4px; }
+  .boss-hint-text { font-size: 12px; color: #4a6b4f; background: #eef6ea; border: 2px solid #cfe3c8; padding: 8px; margin-top: 8px; line-height: 1.6; text-align: left; }
+  .boss-confidence { font-size: 11px; display: block; margin-top: 2px; }
 
   /* ── 笑顔雲（おおもやもや戦の勝利記録・旅シーンにずっと表示） ── */
   .smile-clouds { position: absolute; top: 6px; left: 0; right: 0; height: 40px; z-index: 1; pointer-events: none; }
@@ -604,6 +609,7 @@
         <button class="btn auto-formation" id="autoFormationBtn">✨ おまかせ編成</button>
         <div class="slots" id="partySlots"></div>
         <p class="total">キャラバン総合力 <b id="totalPowerText">0</b><br>→ るすばん中に稼げるパンダさんパワーが変わるよ</p>
+        <p class="smile-force">😊 笑顔にする力 <b id="smileForceText">100%</b>（おおもやもや戦の強さ）</p>
         <p class="formation" id="formationText"></p>
       </section>
 
@@ -766,11 +772,13 @@
       </div>
       <div class="boss-hpbar"><div class="fill" id="bossHpFill"></div><span class="boss-hptext" id="bossHpText"></span></div>
       <p class="boss-timer" id="bossTimerText">のこり 60びょう</p>
+      <p class="boss-smileforce" id="bossSmileForceText">😊 笑顔にする力 100%</p>
       <p class="boss-hint">見てるだけでOK！キャラバンの浄化力でゲージを削るよ</p>
     </div>
     <div id="bossResultView" style="display:none;">
       <h3 id="bossResultTitle"></h3>
       <p id="bossResultText"></p>
+      <p class="boss-hint-text" id="bossHintText" style="display:none;"></p>
       <ul id="bossResultRewards"></ul>
       <button class="btn" id="bossCloseBtn" style="margin-top:10px;">とじる</button>
     </div>
@@ -834,6 +842,8 @@
     bossHpBase: 900,       // エリア1のHP（浄化力の平均的な編成でだいたい60秒ぴったりで削りきれる想定）
     bossHpGrowth: 1.8,     // エリアが進むごとにHPが1.8倍
     bossDpsPerPurifyMult: 10, // 1秒あたりのダメージ = これ × stats.purifyMult
+    bossConfidentRatio: 1.05, // 60秒ぶんの想定削り量がHPのこの倍率以上→😊勝てそう！
+    bossCloseRatio: 0.85,     // 〜この倍率以上なら😅いい勝負／それ未満は😰まだきびしいかも
     goldenLetterRates: { SSR: 0.875, UR: 0.125 }, // 金の手紙＝SSR以上確定（3.5:0.5の比率のまま正規化）
   };
 
@@ -983,6 +993,7 @@
     ];
 
     let ctx = null, master = null, playing = false, loopTimer = null, noiseBuf = null;
+    let ctxCreatedAt = 0; // 検証用：AudioContextを新規に作り直すたびのタイムスタンプ(ms)
 
     function ensureCtx() {
       if (!ctx) {
@@ -990,6 +1001,7 @@
         master = ctx.createGain();
         master.gain.value = MASTER_VOL;
         master.connect(ctx.destination);
+        ctxCreatedAt = Date.now();
       }
     }
 
@@ -1065,14 +1077,27 @@
       loopTimer = setTimeout(function () { if (playing) loopStep(); }, (len - 0.3) * 1000);
     }
     function getCurrentTrack() { return currentTrackName; }
+    function getCtxCreatedAt() { return ctxCreatedAt; } // 検証用
+    // 直前にscheduleLoop/scheduleNight/scheduleBoss等で予約された「まだ鳴っていない音」は、
+    // AudioContextに対する未来のstart/stop予約としてWeb Audio自体に積まれているため、
+    // clearTimeout(loopTimer)だけでは止まらない（JS側の次回呼び出しを止めるだけ）。
+    // 確実に黙らせるには🎵OFF→ONと同じ「ctx.close()→新しいAudioContextを作り直す」しかないので、
+    // モード切替のたびにこれを行う（master/トグル状態はplaying/mode変数側にあるのでここでは触らない）。
+    function restartAudioForModeChange() {
+      clearTimeout(loopTimer);
+      if (ctx) { try { ctx.close(); } catch (e) { /* すでに閉じていても気にしない */ } }
+      ctx = null; master = null; noiseBuf = null; // noiseBufは古いctx由来なので必ず作り直す（別ctxのbufferは使えないため）
+      ensureCtx();
+      loopStep();
+    }
     // おおもやもや戦の開始/終了で即座にBGMを切り替える（ループ境界を待たない＝バトルの手ざわりを優先）
     function enterBossMode() {
       mode = 'boss';
-      if (playing) { clearTimeout(loopTimer); loopStep(); }
+      if (playing) restartAudioForModeChange();
     }
     function exitBossMode() {
       mode = 'normal';
-      if (playing) { clearTimeout(loopTimer); loopStep(); }
+      if (playing) restartAudioForModeChange();
     }
 
     /* ============================================================
@@ -1207,6 +1232,7 @@
       playBoss: playBoss, playNight: playNight, // playNightは自動選曲の内部実装として稼働。playBossは単体呼び出し用に残置（実際の切替はenterBossMode経由）
       enterBossMode: enterBossMode, exitBossMode: exitBossMode, // おおもやもや戦の開始/終了でBGMを即切替
       getCurrentTrack: getCurrentTrack, // 検証用：'day'（てくてくキャラバン）| 'night'（よるのキャラバン）| 'boss'（おおもやもや戦）
+      getCtxCreatedAt: getCtxCreatedAt, // 検証用：AudioContextを新規作成した時刻(ms)。モード切替のたびに更新される
     };
   })();
   window.BgmEngine = BgmEngine; // 動作確認用（Playwright等の外部検証がAudioContextの状態を見られるように）
@@ -1949,7 +1975,7 @@
     ['sasaCount', 'powerCount', 'townText', 'townFill', 'townPct', 'toast', 'popText', 'moyamoyaEl',
      'caravanEl', 'reportCard', 'reportDiary', 'reportList', 'reportClaimBtn', 'dropCard', 'dropIcon',
      'dropRank', 'dropName', 'dropNewBadge', 'dropFx', 'welcomeCard', 'partySlots', 'totalPowerText',
-     'formationText', 'autoFormationBtn', 'autoEquipBtn', 'equipSlots', 'invCount', 'invList', 'gachaPullBtn', 'ticketText', 'townList',
+     'formationText', 'smileForceText', 'autoFormationBtn', 'autoEquipBtn', 'equipSlots', 'invCount', 'invList', 'gachaPullBtn', 'ticketText', 'townList',
      'pityText', 'pity50Btn', 'pity100Btn',
      'gacha10PullBtn', 'gacha10Result', 'gacha10Grid', 'gacha10Best', 'gacha10CloseBtn',
      'goldenLetterText', 'goldenLetterBtn',
@@ -1964,8 +1990,8 @@
      'bgmToggleBtn', 'xShareBtn',
      'sceneEl', 'skyLayerA', 'skyLayerB', 'starsEl', 'bandIconBtn', 'smileCloudsEl',
      'bossCard', 'bossAreaList', 'bossOverlay', 'bossBattleView', 'bossResultView',
-     'bossMoyamoyaEl', 'bossHpFill', 'bossHpText', 'bossTimerText',
-     'bossResultTitle', 'bossResultText', 'bossResultRewards', 'bossCloseBtn'
+     'bossMoyamoyaEl', 'bossHpFill', 'bossHpText', 'bossTimerText', 'bossSmileForceText',
+     'bossResultTitle', 'bossResultText', 'bossHintText', 'bossResultRewards', 'bossCloseBtn'
     ].forEach(function (id) { el[id] = q(id); });
   }
 
@@ -2116,6 +2142,7 @@
     }
     el.partySlots.innerHTML = html;
     el.totalPowerText.textContent = fmt(stats.totalPower);
+    el.smileForceText.textContent = smileForcePercent(stats) + '%';
     el.formationText.textContent = formationLabelText(stats);
     renderScene();
   }
@@ -2309,6 +2336,29 @@
     return BALANCE.bossDpsPerPurifyMult * purifyMult * (elapsedMs / 1000);
   }
 
+  // 「笑顔にする力」＝purifyMultをパーセント表示にした呼び名（内部の計算式はそのまま・呼び名だけ統一する）
+  function smileForcePercent(stats) {
+    return Math.round((stats.purifyMult || 0) * 100);
+  }
+
+  const BOSS_CONFIDENCE = {
+    confident: { icon: '😊', text: '勝てそう！' },
+    close: { icon: '😅', text: 'いい勝負' },
+    hard: { icon: '😰', text: 'まだきびしいかも' },
+  };
+  // 決定論（purifyMult×秒）で60秒戦った場合の削り量を事前計算し、3段階の勝算を返す
+  function bossWinEstimate(area) {
+    const stats = computeStats();
+    const maxHp = bossHpForArea(area);
+    const estDamage = bossDamageForElapsed(stats.purifyMult, BALANCE.bossBattleMs);
+    const ratio = estDamage / maxHp;
+    let level;
+    if (ratio >= BALANCE.bossConfidentRatio) level = 'confident';
+    else if (ratio >= BALANCE.bossCloseRatio) level = 'close';
+    else level = 'hard';
+    return { ratio: ratio, level: level, estDamage: estDamage, maxHp: maxHp };
+  }
+
   function renderBossAreas() {
     const unlockedCount = BALANCE.bossUnlockTownCounts.filter(function (t) { return (state.clearedTowns || 0) >= t; }).length;
     if (unlockedCount === 0) { el.bossCard.style.display = 'none'; return; }
@@ -2318,7 +2368,10 @@
       if (state.bossWon && state.bossWon[area]) {
         html += '<p class="boss-cleared-row">🌤 ' + bossAreaTownName(area) + 'の空に、大きな笑顔雲がいるよ</p>';
       } else {
-        html += '<button class="btn boss-challenge" data-area="' + area + '">🥊 おおもやもやが空にいるよ…挑戦する？（' + bossAreaTownName(area) + '）</button>';
+        const est = bossWinEstimate(area);
+        const conf = BOSS_CONFIDENCE[est.level];
+        html += '<button class="btn boss-challenge" data-area="' + area + '">🥊 おおもやもやが空にいるよ…挑戦する？（' + bossAreaTownName(area) + '）' +
+          '<span class="boss-confidence">' + conf.icon + ' ' + conf.text + '</span></button>';
       }
     }
     el.bossAreaList.innerHTML = html;
@@ -2348,6 +2401,7 @@
     el.bossOverlay.style.display = 'flex';
     BgmEngine.enterBossMode();
     renderBossProgress(maxHp, maxHp, BALANCE.bossBattleMs);
+    el.bossSmileForceText.textContent = '😊 笑顔にする力 ' + smileForcePercent(computeStats()) + '%';
     if (bossTickTimer) clearInterval(bossTickTimer);
     bossTickTimer = setInterval(bossTick, 200);
     bossTick();
@@ -2360,8 +2414,12 @@
     const damage = bossDamageForElapsed(stats.purifyMult, elapsed);
     const hp = Math.max(0, runtime.boss.maxHp - damage);
     renderBossProgress(hp, runtime.boss.maxHp, Math.max(0, runtime.boss.timeLimitMs - elapsed));
-    if (hp <= 0) { finishBossBattle(true); return; }
-    if (elapsed >= runtime.boss.timeLimitMs) { finishBossBattle(false); return; }
+    if (hp <= 0) { finishBossBattle(true, 100); return; }
+    if (elapsed >= runtime.boss.timeLimitMs) {
+      const clearedPct = Math.max(0, Math.min(100, Math.round(((runtime.boss.maxHp - hp) / runtime.boss.maxHp) * 100)));
+      finishBossBattle(false, clearedPct);
+      return;
+    }
   }
 
   function renderBossProgress(hp, maxHp, remainingMs) {
@@ -2371,7 +2429,10 @@
     el.bossTimerText.textContent = 'のこり ' + Math.ceil(remainingMs / 1000) + 'びょう';
   }
 
-  function finishBossBattle(won) {
+  // 敗北時の診断ヒント（長文禁止・2行以内）：「笑顔にする力」＝purifyMultを上げる代表的な2手を案内する
+  const BOSS_HINT_TEXT = 'もやもやを笑顔にする力を あげるには：<br>『元気くばり上手』のなかま／『パンダさんパワー+%』の旅道具 が いちばん効くよ';
+
+  function finishBossBattle(won, clearedPct) {
     if (bossTickTimer) { clearInterval(bossTickTimer); bossTickTimer = null; }
     const area = runtime.boss.area;
     runtime.boss.active = false;
@@ -2392,11 +2453,14 @@
       }
       el.bossResultTitle.textContent = '🎉 おおもやもやが おおきな笑顔になった！';
       el.bossResultText.textContent = '';
+      el.bossHintText.style.display = 'none';
       el.bossResultRewards.innerHTML = rewardLines.map(function (t) { return '<li>' + t + '</li>'; }).join('');
       BgmEngine.playFanfare();
     } else {
       el.bossResultTitle.textContent = 'じかんぎれ…';
-      el.bossResultText.textContent = 'もやもやは にげないから、つよくなって また来てね';
+      el.bossResultText.textContent = (clearedPct || 0) + '%まで削れたよ。もやもやは にげないから、つよくなって また来てね';
+      el.bossHintText.innerHTML = BOSS_HINT_TEXT;
+      el.bossHintText.style.display = '';
       el.bossResultRewards.innerHTML = '';
     }
     saveState();
@@ -3006,6 +3070,8 @@
     startBossBattle: startBossBattle,
     bossTick: bossTick,
     bossHpForArea: bossHpForArea,
+    bossWinEstimate: bossWinEstimate,
+    smileForcePercent: smileForcePercent,
     pullGacha10: pullGacha10,
     pullGoldenLetter: pullGoldenLetter,
     currentGacha10Cost: currentGacha10Cost,
