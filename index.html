@@ -115,12 +115,11 @@
     position: relative; height: 250px; overflow: hidden;
     background: #cbb3c8;
     border-bottom: 4px solid var(--dark);
-    transition: filter 2.5s ease; /* 帯の光の色（朝焼け/夜の暗さ）をゆっくりクロスフェードさせる */
   }
-  /* 朝＝夕暮れ素材を暖色寄りに（朝焼けオレンジ）。夜＝暗くする（星は別レイヤーで表示） */
-  .scene.tint-morning { filter: hue-rotate(-25deg) saturate(1.35) brightness(1.12); }
-  .scene.tint-night { filter: brightness(.55) saturate(1.05); }
-  .layer { position: absolute; inset: 0; background-repeat: repeat-x; image-rendering: pixelated; }
+  /* 帯の色調整は「空グループ」（空・遠景・山・木・地面）だけに効かせる。
+     地面・キャラバン・パンダさん・props・もやもや雲はfilterで色を暴れさせない（2026-07-24 見た目バグ修正）。
+     朝＝空グループの上に暖色オーバーレイ（.morning-glow）を重ねる方式。夜＝空グループ＋地面を暗く、キャラバンは控えめに暗くするだけ。夕＝素の夕暮れ素材のまま（フィルターなし）。 */
+  .layer { position: absolute; inset: 0; background-repeat: repeat-x; image-rendering: pixelated; transition: filter 2.5s ease; }
   /* 空レイヤーは2枚重ねてopacityクロスフェード（帯が変わって絵そのものが変わるのは昼⇔それ以外の時だけ。
      夕/朝/夜は同じ夕暮れ素材＋.scene側のfilterで表情を変える） */
   .sky-layer {
@@ -149,17 +148,38 @@
   .prop.bush { bottom: 50px; width: 60px; z-index: 3; animation: driftL 6.5s linear infinite; animation-delay: -2s; }
   @keyframes driftL { from { transform: translateX(470px); } to { transform: translateX(-250px); } }
 
+  /* 朝：空グループの上に暖色オーバーレイを重ねるだけ（hue-rotateで色を暴れさせない。オレンジ→ピンク・上ほど濃い） */
+  .morning-glow {
+    position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background: linear-gradient(to bottom, rgba(255,138,88,.42) 0%, rgba(255,150,168,.22) 55%, rgba(255,190,190,0) 100%);
+    opacity: 0; transition: opacity 2.5s ease;
+  }
+  .scene.tint-morning .morning-glow { opacity: 1; }
+  .scene.tint-morning .sky-layer,
+  .scene.tint-morning .l-far,
+  .scene.tint-morning .l-mid,
+  .scene.tint-morning .l-trees { filter: brightness(1.1); }
+
+  /* 夜：暗くするのは空グループ＋地面だけ。キャラバン（馬車＋パンダさん）はbrightness(.8)程度の控えめに（真っ黒にしない） */
+  .scene.tint-night .sky-layer,
+  .scene.tint-night .l-far,
+  .scene.tint-night .l-mid,
+  .scene.tint-night .l-trees,
+  .scene.tint-night .ground { filter: brightness(.55) saturate(1.05); }
+  .scene.tint-night .caravan { filter: brightness(.8); }
+
   .ground {
     position: absolute; left: 0; right: 0; bottom: 0; height: 56px;
     background-image: url(assets/scene/ground.png);
     background-size: 28px 56px; background-repeat: repeat-x;
     image-rendering: pixelated;
     animation: roll .7s linear infinite;
+    transition: filter 2.5s ease;
     z-index: 2;
   }
   @keyframes roll { to { background-position-x: -28px; } }
 
-  .caravan { position: absolute; bottom: 40px; left: 16px; display: flex; align-items: flex-end; gap: 6px; z-index: 2; }
+  .caravan { position: absolute; bottom: 40px; left: 16px; display: flex; align-items: flex-end; gap: 6px; z-index: 2; transition: filter 2.5s ease; }
   .wagonwrap { position: relative; }
   .wagon { width: 84px; display: block; image-rendering: pixelated; animation: bob .7s ease-in-out infinite; animation-delay: .1s; }
   .wagonwrap .sasa { position: absolute; top: -12px; right: 4px; font-size: 18px; letter-spacing: -6px; }
@@ -355,6 +375,43 @@
 
   .towns { list-style: none; font-size: 13px; line-height: 2.1; }
 
+  /* ── 絵巻マップ（旅の絵巻・地図タブの主役） ── */
+  .emaki-card { overflow: hidden; }
+  .emaki-scroll {
+    overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch;
+    margin: 0 -12px; padding: 10px 12px 6px;
+    background: linear-gradient(#dff0d0, #cfe3c0);
+    border-top: 2px solid #b8d0a8; border-bottom: 2px solid #b8d0a8;
+  }
+  .emaki-road { position: relative; display: flex; align-items: flex-end; height: 118px; min-width: max-content; }
+  .emaki-node { position: relative; display: flex; flex-direction: column; align-items: center; width: 66px; flex: none; }
+  .emaki-house { width: 50px; height: auto; image-rendering: pixelated; display: block; }
+  .emaki-house.unk { filter: brightness(0); opacity: .38; }
+  .emaki-house.current { filter: drop-shadow(0 0 6px #ffe066) drop-shadow(0 0 2px #ffe066); }
+  .emaki-lantern { position: absolute; top: 2px; right: 6px; font-size: 13px; }
+  .emaki-label { font-size: 9px; text-align: center; margin-top: 2px; max-width: 64px; line-height: 1.3; }
+  .emaki-current-marker { position: absolute; top: -30px; left: 50%; transform: translateX(-50%); z-index: 3; }
+  .emaki-current-marker img { width: 34px; image-rendering: pixelated; animation: bob .7s ease-in-out infinite; }
+  .emaki-smile {
+    position: absolute; top: -34px; left: 50%; transform: translateX(-50%);
+    width: 32px; height: 22px;
+    background: url(assets/scene/moyamoya.png) center/contain no-repeat;
+    filter: brightness(1.9) saturate(.3);
+  }
+  .emaki-path { flex: none; width: 42px; height: 20px; align-self: flex-end; margin-bottom: 16px; position: relative; }
+  .footprint { position: absolute; bottom: 2px; width: 4px; height: 6px; border-radius: 50%; background: rgba(70, 50, 25, .45); }
+  .footprint:nth-child(1) { left: 4px; bottom: 6px; }
+  .footprint:nth-child(2) { left: 18px; bottom: 0; }
+  .footprint:nth-child(3) { left: 32px; bottom: 6px; }
+  .emaki-hint { font-size: 11px; color: #4a6b4f; margin-top: 6px; text-align: center; }
+
+  /* ── 旅のきろく（自動年表） ── */
+  .journal-list { list-style: none; font-size: 12px; line-height: 1.9; max-height: 220px; overflow-y: auto; }
+  .journal-list li { border-bottom: 1px solid #eee; padding: 3px 0; }
+  .journal-date { color: #7a3fd0; font-size: 11px; margin-right: 4px; }
+  #journalMoreBtn { margin-top: 8px; background: #7a3fd0; border-color: #4a2080; box-shadow: 0 4px 0 #4a2080; }
+  #journalMoreBtn:active { box-shadow: 0 1px 0 #4a2080; }
+
   /* ── おおもやもや戦（エリアボス） ── */
   .boss-card h2 { color: #b0473f; }
   .btn.boss-challenge { background: #b0473f; border-color: #6e2b26; box-shadow: 0 4px 0 #6e2b26; margin-bottom: 8px; }
@@ -514,6 +571,7 @@
   .char-detail-skill { font-size: 12px; color: #a67c00; background: #fff6df; border: 2px solid #ffb400; padding: 6px; margin-top: 8px; text-align: left; line-height: 1.6; }
   .char-detail-power { font-size: 13px; margin-top: 8px; }
   .char-detail-power b { color: var(--green); }
+  .char-detail-memory { font-size: 12px; margin-top: 6px; color: #4a6b4f; background: #eef6ea; border: 2px solid #cfe3c8; padding: 6px; }
   .char-detail-flavor { font-size: 12px; margin-top: 8px; line-height: 1.7; text-align: left; color: #4a4a42; }
   .char-zoom-overlay {
     position: fixed; inset: 0; background: rgba(6, 4, 8, .92); z-index: 250;
@@ -554,6 +612,7 @@
     <div class="layer l-far"></div>
     <div class="layer l-mid"></div>
     <div class="layer l-trees"></div>
+    <div class="morning-glow" id="morningGlowEl"></div>
     <div class="smile-clouds" id="smileCloudsEl"></div>
     <div class="toast" id="toast"></div>
     <div class="pop" id="popText"></div>
@@ -651,14 +710,23 @@
 
     <!-- 🗾 地図タブ -->
     <div class="tab" id="tab-map">
-      <section class="card">
-        <h2>🗾 旅の地図</h2>
-        <ul class="towns" id="townList"></ul>
+      <section class="card emaki-card">
+        <h2>🗾 旅の絵巻</h2>
+        <div class="emaki-scroll" id="emakiScroll">
+          <div class="emaki-road" id="emakiRoad"></div>
+        </div>
+        <p class="emaki-hint">町をタップすると、その町の思い出が見られるよ</p>
       </section>
 
       <section class="card boss-card" id="bossCard" style="display:none;">
         <h2>🥊 おおもやもや</h2>
         <div id="bossAreaList"></div>
+      </section>
+
+      <section class="card journal-card">
+        <h2>📜 旅のきろく</h2>
+        <ul class="journal-list" id="journalList"></ul>
+        <button class="btn" id="journalMoreBtn" style="display:none;">もっとみる</button>
       </section>
 
       <section class="card save-card" id="cloudCard">
@@ -1255,17 +1323,24 @@
     { id: 'chacha', name: 'ちゃちゃ', rarity: 'SR', talents: ['元気くばり上手', 'おうえん上手'], image: CHAR_IMG_DEFAULT, preferredBand: null, flavor: '世話焼きのお姉さん気質。列の後ろまで声をかける。' },
     { id: 'tekuteku', name: 'てくてく', rarity: 'SR', talents: ['あしがはやい', '笹ひろい上手'], image: CHAR_IMG_DEFAULT, preferredBand: null, flavor: '歩数を数えるのが趣味。今日も1万歩。' },
     { id: 'kirari', name: 'きらり', rarity: 'SR', talents: ['みつけ上手', '元気くばり上手'], image: CHAR_IMG_DEFAULT, preferredBand: 'evening', flavor: '目がいい。地平線の向こうの町を最初に見つける係。' },
+    { id: 'suyasuya', name: 'すやすや', rarity: 'SR', talents: ['おうえん上手', '笹ひろい上手'], image: CHAR_IMG_DEFAULT, preferredBand: null, flavor: '歩きながら寝られる特技。寝言が応援になっている。' },
+    { id: 'nonbiri', name: 'のんびり', rarity: 'SR', talents: ['笹ひろい上手', 'おうえん上手'], image: CHAR_IMG_DEFAULT, preferredBand: 'day', flavor: '焦らない。でもなぜか集合時間には間に合う。' },
+    { id: 'shakishaki', name: 'しゃきしゃき', rarity: 'SR', talents: ['あしがはやい', '元気くばり上手'], image: CHAR_IMG_DEFAULT, preferredBand: 'morning', flavor: '朝型。全員の寝ぐせを直してから出発する。' },
     { id: 'korokoro', name: 'ころころ', rarity: 'R', talents: ['笹ひろい上手'], image: CHAR_IMG_DEFAULT, preferredBand: null, flavor: '坂道が得意。転がるだけで仕事になる。' },
     { id: 'mochimochi', name: 'もちもち', rarity: 'R', talents: ['笹ひろい上手'], image: CHAR_IMG_DEFAULT, preferredBand: null, flavor: 'ほっぺが名物。さわると元気が出ると評判。' },
     { id: 'runrun', name: 'るんるん', rarity: 'R', talents: ['おうえん上手'], image: CHAR_IMG_DEFAULT, preferredBand: null, flavor: '機嫌がいい。理由はとくにない。' },
     { id: 'hokuhoku', name: 'ほくほく', rarity: 'R', talents: ['みつけ上手'], image: CHAR_IMG_DEFAULT, preferredBand: 'evening', flavor: '掘りものが得意。たけのこ発見率No.1。' },
     { id: 'moonwalk', name: 'ムーンウォーク', rarity: 'R', talents: ['あしがはやい'], image: CHAR_IMG_DEFAULT, preferredBand: 'night', flavor: 'うしろ向きに歩いてるのに、なぜかちゃんと前に進む。本人にも理由はわからない。' },
+    { id: 'nikoniko', name: 'にこにこ', rarity: 'R', talents: ['元気くばり上手'], image: CHAR_IMG_DEFAULT, preferredBand: null, flavor: '笑顔が基本装備。怒った顔を誰も見たことがない。' },
+    { id: 'tokotoko', name: 'とことこ', rarity: 'R', talents: ['あしがはやい'], image: CHAR_IMG_DEFAULT, preferredBand: null, flavor: '小さい歩幅で大きい子と同じ速さ。企業秘密らしい。' },
     { id: 'sasanoha', name: 'ささのは', rarity: 'N', talents: ['笹ひろい上手'], image: CHAR_IMG_DEFAULT, preferredBand: null, flavor: '笹のことなら任せて、が口ぐせの新人。' },
     { id: 'takenoko', name: 'たけのこ', rarity: 'N', talents: ['笹ひろい上手'], image: CHAR_IMG_DEFAULT, preferredBand: 'day', flavor: '掘りたてみたいに元気。伸びしろしかない。' },
     { id: 'kotsubu', name: 'こつぶ', rarity: 'N', talents: ['みつけ上手'], image: CHAR_IMG_DEFAULT, preferredBand: null, flavor: '小さいから低いところの落としものに強い。' },
     { id: 'mameta', name: 'まめた', rarity: 'N', talents: ['あしがはやい'], image: CHAR_IMG_DEFAULT, preferredBand: 'day', flavor: 'まめに走る。まめに休む。' },
     { id: 'ohayou', name: 'おはよう', rarity: 'N', talents: ['元気くばり上手'], image: CHAR_IMG_DEFAULT, preferredBand: 'morning', flavor: '挨拶が名前になった子。夕方でも「おはよう」。' },
     { id: 'mogumogu', name: 'もぐもぐ', rarity: 'N', talents: ['笹ひろい上手'], image: CHAR_IMG_DEFAULT, preferredBand: 'day', flavor: 'もぐもぐ食べてるだけなのに、なぜか笹がたくさん集まってくる。' },
+    { id: 'yurayura', name: 'ゆらゆら', rarity: 'N', talents: ['おうえん上手'], image: CHAR_IMG_DEFAULT, preferredBand: null, flavor: '揺れてるだけで和む。キャラバンのマスコット。' },
+    { id: 'kurikuri', name: 'くりくり', rarity: 'N', talents: ['みつけ上手'], image: CHAR_IMG_DEFAULT, preferredBand: null, flavor: '目がくりくり。よくものを見つけ、よくものをなくす。' },
     // ── SSR（5人・得意2つ＋固有スキル） ──
     { id: 'gorogoro', name: 'ごろごろ', rarity: 'SSR', talents: ['笹ひろい上手', 'おうえん上手'], image: CHAR_IMG_DEFAULT, preferredBand: 'day',
       skill: { name: 'ごろごろ収穫祭', desc: '笹収入+30%' },
@@ -1297,6 +1372,15 @@
   const ALL_CHARS = [TAICHO].concat(GACHA_POOL);
   const CHAR_MAP = {};
   ALL_CHARS.forEach(function (c) { CHAR_MAP[c.id] = c; });
+
+  // なかまのレア度並び順（ソシャゲ標準：UR→SSR→SR→R→N が上）。charRarityRank()もこの表を使う。
+  const CHAR_RARITY_ORDER = { UR: 4, SSR: 3, SR: 2, R: 1, N: 0 };
+  // ずかん・編成選択リストで使う「レア度順（同レア内は定義順のまま＝Array.sortの安定性を利用）」の並び
+  const ALL_CHARS_BY_RARITY = ALL_CHARS.slice().sort(function (a, b) {
+    return (CHAR_RARITY_ORDER[b.rarity] || 0) - (CHAR_RARITY_ORDER[a.rarity] || 0);
+  });
+  const CHAR_ORDER_INDEX = {}; // id→表示順インデックス（ずかん・編成選択どちらもこの順で並べる）
+  ALL_CHARS_BY_RARITY.forEach(function (c, i) { CHAR_ORDER_INDEX[c.id] = i; });
 
   const RARITY_LABEL = { futsu: 'ふつう', suteki: 'すてき', totteoki: 'とっておき', densetsu: 'でんせつ' };
   const RARITY_STAR = { futsu: '★', suteki: '★★', totteoki: '★★★', densetsu: '★★★★' };
@@ -1371,6 +1455,7 @@
   }
   function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
   function uid() { return 'it' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+  function todayDateLabel(d) { d = d || new Date(); return (d.getMonth() + 1) + '/' + d.getDate(); }
   // 端末時刻の時間帯判定（簡易版：startH<=endHなら日中区間、startH>endHなら日またぎ区間として扱う）
   // ※みかづき（夜21-6時）・はつひので（朝5-10時）の固有スキルの時間窓はこちらを使う（帯の境界とは別管理）
   function timeInRange(hour, startH, endH) {
@@ -1419,6 +1504,9 @@
       omukaePt: 0,
       bossWon: {},       // { エリア番号: true } おおもやもや戦の勝利記録（笑顔雲として空にずっと表示）
       goldenLetters: 0,  // 金の手紙💌の所持数
+      journal: [{ date: todayDateLabel(), text: '旅がはじまった' }], // キャラバン旅日記（自動年表・最大200件）
+      memories: {},      // { キャラid: { days, clouds } } なかまの思い出メモリー
+      lastMemoryCheckDate: null, // 日付が変わったらdays+1する判定用（null=まだ未チェック→起動時に必ず1回加算される）
     };
   }
   let state = null;
@@ -1433,6 +1521,35 @@
   }
   function saveState() {
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch (e) { /* 保存できなくても続行 */ }
+  }
+
+  /* ============================================================
+   * キャラバン旅日記（自動年表）となかまの思い出メモリー
+   * 展望アイデア帳.md ①②⑧準拠：証は数字の陳列ではなく景色と物語で見せる
+   * ============================================================ */
+  const JOURNAL_MAX = 200;
+  function addJournalEntry(text) {
+    if (!state.journal) state.journal = [];
+    state.journal.push({ date: todayDateLabel(), text: text });
+    while (state.journal.length > JOURNAL_MAX) state.journal.shift(); // 古い順に自動削除
+  }
+  function ensureMemory(id) {
+    if (!state.memories) state.memories = {};
+    if (!state.memories[id]) state.memories[id] = { days: 0, clouds: 0 };
+    return state.memories[id];
+  }
+  // 日付が変わっていたら、いま編成中のなかま全員の「いっしょに旅した日数」を+1する
+  function checkDailyMemoryTick() {
+    const today = todayDateLabel();
+    if (state.lastMemoryCheckDate === today) return;
+    state.lastMemoryCheckDate = today;
+    state.party.filter(Boolean).forEach(function (id) { ensureMemory(id).days += 1; });
+  }
+  // もやもや雲をcount個ぶん笑顔にした（リアルタイムなら1、るすばん精算ならまとめて合算）ときに、
+  // いまの編成4人ぶんの「笑顔にした雲の数」をまとめて加算する
+  function bumpMemoriesForCloudsResolved(count) {
+    if (!count) return;
+    state.party.filter(Boolean).forEach(function (id) { ensureMemory(id).clouds += count; });
   }
 
   /* ============================================================
@@ -1804,11 +1921,13 @@
         state.gauge -= TOWNS[state.townIndex].requirement;
         state.townIndex++;
         showToast('🎉 ' + clearedName + ' クリア！つぎの町へ出発だよ');
+        addJournalEntry(clearedName + 'を元気にした');
         BgmEngine.playFanfare(); // BGM ONのときだけメインループの上に重ねて鳴る（OFF/未生成なら中で何もしない）
       } else {
         if (!state.finalMessageShown) {
           state.finalMessageShown = true;
           showToast('🎉 ' + TOWNS.length + 'つの町をまわりきったよ！ つづきはこれから！（おおもやもや戦をまっててね）');
+          addJournalEntry(clearedName + 'を元気にした');
           BgmEngine.playFanfare();
         }
         break;
@@ -1955,6 +2074,7 @@
     state.sasa += result.sasaGain;
     state.pandaPower += result.powerGain;
     advanceTownGauge(result.clouds);
+    bumpMemoriesForCloudsResolved(result.clouds); // るすばん精算ぶんもいまの編成に加算
     for (let i = 0; i < result.itemsGain; i++) {
       const item = generateItem(result.hasHanamaru);
       item.newFlag = computeIsNew(item);
@@ -1975,7 +2095,8 @@
     ['sasaCount', 'powerCount', 'townText', 'townFill', 'townPct', 'toast', 'popText', 'moyamoyaEl',
      'caravanEl', 'reportCard', 'reportDiary', 'reportList', 'reportClaimBtn', 'dropCard', 'dropIcon',
      'dropRank', 'dropName', 'dropNewBadge', 'dropFx', 'welcomeCard', 'partySlots', 'totalPowerText',
-     'formationText', 'smileForceText', 'autoFormationBtn', 'autoEquipBtn', 'equipSlots', 'invCount', 'invList', 'gachaPullBtn', 'ticketText', 'townList',
+     'formationText', 'smileForceText', 'autoFormationBtn', 'autoEquipBtn', 'equipSlots', 'invCount', 'invList', 'gachaPullBtn', 'ticketText',
+     'emakiScroll', 'emakiRoad', 'journalList', 'journalMoreBtn',
      'pityText', 'pity50Btn', 'pity100Btn',
      'gacha10PullBtn', 'gacha10Result', 'gacha10Grid', 'gacha10Best', 'gacha10CloseBtn',
      'goldenLetterText', 'goldenLetterBtn',
@@ -1988,7 +2109,7 @@
      'cloudCard', 'cloudDisconnectedBox', 'cloudConnectedBox', 'cloudConnectedName',
      'cloudNameInput', 'cloudSecretInput', 'cloudConnectBtn', 'cloudDisconnectBtn', 'cloudMsg',
      'bgmToggleBtn', 'xShareBtn',
-     'sceneEl', 'skyLayerA', 'skyLayerB', 'starsEl', 'bandIconBtn', 'smileCloudsEl',
+     'sceneEl', 'skyLayerA', 'skyLayerB', 'starsEl', 'bandIconBtn', 'smileCloudsEl', 'morningGlowEl',
      'bossCard', 'bossAreaList', 'bossOverlay', 'bossBattleView', 'bossResultView',
      'bossMoyamoyaEl', 'bossHpFill', 'bossHpText', 'bossTimerText', 'bossSmileForceText',
      'bossResultTitle', 'bossResultText', 'bossHintText', 'bossResultRewards', 'bossCloseBtn'
@@ -2072,6 +2193,8 @@
     const targetImgCss = 'url(' + skyImageForBand(band) + ')';
     const activeEl = runtimeSky.activeLayer === 'A' ? el.skyLayerA : el.skyLayerB;
     const inactiveEl = runtimeSky.activeLayer === 'A' ? el.skyLayerB : el.skyLayerA;
+    // filterのtransitionを持つ要素たち（空グループ＋地面＋キャラバン＋朝の暖色オーバーレイ）。immediate反映時はこれらのtransitionも一瞬止める
+    const filterEls = Array.prototype.slice.call(el.sceneEl.querySelectorAll('.l-far, .l-mid, .l-trees, .ground')).concat([el.caravanEl, el.morningGlowEl]);
     const applyLightingClasses = function () {
       el.sceneEl.classList.toggle('tint-morning', band === 'morning');
       el.sceneEl.classList.toggle('tint-night', band === 'night');
@@ -2081,7 +2204,7 @@
     if (activeEl.style.backgroundImage !== targetImgCss) {
       inactiveEl.style.backgroundImage = targetImgCss;
       if (immediate) {
-        withNoTransition([activeEl, inactiveEl, el.sceneEl, el.starsEl], function () {
+        withNoTransition([activeEl, inactiveEl, el.sceneEl, el.starsEl].concat(filterEls), function () {
           activeEl.classList.remove('show');
           inactiveEl.classList.add('show');
           applyLightingClasses();
@@ -2096,7 +2219,7 @@
       }
       runtimeSky.activeLayer = runtimeSky.activeLayer === 'A' ? 'B' : 'A';
     } else if (immediate) {
-      withNoTransition([el.sceneEl, el.starsEl], applyLightingClasses);
+      withNoTransition([el.sceneEl, el.starsEl].concat(filterEls), applyLightingClasses);
     } else {
       applyLightingClasses();
     }
@@ -2147,7 +2270,7 @@
     renderScene();
   }
 
-  function charRarityRank(r) { return { N: 0, R: 1, SR: 2, SSR: 3, UR: 4 }[r] || 0; }
+  function charRarityRank(r) { return CHAR_RARITY_ORDER[r] || 0; }
 
   function combinations(arr, k) {
     const results = [];
@@ -2303,22 +2426,90 @@
   }
 
   function renderMap() {
+    renderEmaki();
+    renderJournal();
+    renderBossAreas();
+  }
+
+  // その町を「元気にした」journal行の日付を探す（＝はじめて来た日のかわりに使う近似値）
+  function findJournalDateForTown(name) {
+    if (!state.journal) return null;
+    const entry = state.journal.find(function (e) { return e.text === name + 'を元気にした'; });
+    return entry ? entry.date : null;
+  }
+
+  // 絵巻マップ：横スクロールの道に町（家アイコン）を並べる。クリア済みは明るく＋🏮、未到達はシルエット＋❓。
+  // 現在地にミニキャラバン、ボス撃破済みエリアの空に笑顔雲、区間ごとにあしあと（クリア済みだけ）。
+  function renderEmaki() {
+    if (!el.emakiRoad) return;
     let html = '';
     TOWNS.forEach(function (t, i) {
-      if (i < state.townIndex || (i === state.townIndex && state.finalMessageShown)) {
-        html += '<li>✅ ' + t.name + ' …なかよしの町（特産品：' + t.specialty + '）</li>';
-      } else if (i === state.townIndex) {
-        const pct = Math.min(100, Math.round((state.gauge / t.requirement) * 100));
-        html += '<li>▶️ ' + t.name + ' …パンダさんパワー ' + pct + '%</li>';
-      } else {
-        html += '<li>❓ ' + t.name + ' …まだ見ぬ町</li>';
+      const cleared = i < state.townIndex || (i === state.townIndex && state.finalMessageShown);
+      const isCurrent = (i === state.townIndex && !state.finalMessageShown);
+      const reached = i <= state.townIndex;
+      let area = null;
+      BALANCE.bossUnlockTownCounts.forEach(function (cnt, aIdx) { if (cnt - 1 === i) area = aIdx + 1; });
+      const hasSmile = area && state.bossWon && state.bossWon[area];
+
+      html += '<div class="emaki-node" data-town="' + i + '">';
+      if (hasSmile) html += '<div class="emaki-smile" title="おおもやもやを笑顔にした証"></div>';
+      if (isCurrent) html += '<div class="emaki-current-marker"><img src="assets/scene/wagon.png" alt="いまここ"></div>';
+      html += '<img class="emaki-house ' + (cleared || isCurrent ? 'current' : 'unk') + (cleared ? ' cleared' : '') + '" src="assets/scene/house.png" alt="">';
+      if (cleared) html += '<span class="emaki-lantern">🏮</span>';
+      html += '<div class="emaki-label">' + (reached ? t.name : '❓') + '</div>';
+      html += '</div>';
+
+      if (i < TOWNS.length - 1) {
+        const segCleared = i < state.townIndex;
+        html += '<div class="emaki-path">' + (segCleared ? '<span class="footprint"></span><span class="footprint"></span><span class="footprint"></span>' : '') + '</div>';
       }
     });
     if (state.finalMessageShown) {
-      html += '<li>🌱 つぎの旅路 …おおもやもや戦をまっててね</li>';
+      html += '<div class="emaki-path"><span class="footprint"></span><span class="footprint"></span><span class="footprint"></span></div>';
+      html += '<div class="emaki-node"><div class="emaki-label">🌱<br>つづく…</div></div>';
     }
-    el.townList.innerHTML = html;
-    renderBossAreas();
+    el.emakiRoad.innerHTML = html;
+  }
+
+  // 町タップ→ミニポップ（はじめて来た日／特産品／その町で笑顔にした雲の数）
+  function openTownInfoPopup(i) {
+    const t = TOWNS[i];
+    if (!t) return;
+    const cleared = i < state.townIndex || (i === state.townIndex && state.finalMessageShown);
+    const current = i === state.townIndex && !state.finalMessageShown;
+    const reached = i <= state.townIndex;
+    el.modalTitle.textContent = reached ? t.name : '❓ まだ見ぬ町';
+    let html = '';
+    if (reached) {
+      const firstDate = findJournalDateForTown(t.name);
+      const clouds = cleared ? t.requirement : (current ? state.gauge : 0);
+      html += '<div style="padding:8px 4px;font-size:13px;line-height:2;">' +
+        (firstDate ? '🗓️ はじめて来た日：' + firstDate + '<br>' : (current ? '🚶 いま向かっているよ<br>' : '')) +
+        '🎁 特産品：' + t.specialty + '<br>' +
+        '☁️ ここで笑顔にした雲：' + fmt(clouds) + 'コ' +
+        '</div>';
+    } else {
+      html += '<div style="padding:8px 4px;font-size:13px;">まだ見ぬ町だよ。旅をつづけよう！</div>';
+    }
+    el.modalList.innerHTML = html;
+    el.modalOverlay.style.display = 'flex';
+  }
+
+  // 旅のきろく（自動年表）：最新8件→「もっとみる」で全件展開
+  let journalExpanded = false;
+  function renderJournal() {
+    if (!el.journalList) return;
+    const entries = (state.journal || []).slice().reverse(); // 新しい順
+    const shown = journalExpanded ? entries : entries.slice(0, 8);
+    el.journalList.innerHTML = shown.map(function (e) {
+      return '<li><span class="journal-date">' + e.date + '</span>' + e.text + '</li>';
+    }).join('') || '<li style="color:#999;">まだ記録がないよ</li>';
+    if (entries.length > 8) {
+      el.journalMoreBtn.style.display = '';
+      el.journalMoreBtn.textContent = journalExpanded ? 'とじる' : 'もっとみる（全' + entries.length + '件）';
+    } else {
+      el.journalMoreBtn.style.display = 'none';
+    }
   }
 
   /* ============================================================
@@ -2455,6 +2646,8 @@
       el.bossResultText.textContent = '';
       el.bossHintText.style.display = 'none';
       el.bossResultRewards.innerHTML = rewardLines.map(function (t) { return '<li>' + t + '</li>'; }).join('');
+      addJournalEntry('おおもやもやが笑顔になった（' + bossAreaTownName(area) + '）');
+      addJournalEntry('金の手紙をもらった');
       BgmEngine.playFanfare();
     } else {
       el.bossResultTitle.textContent = 'じかんぎれ…';
@@ -2476,7 +2669,7 @@
     const ownedCount = Object.keys(state.owned).length;
     el.zukanTitle.textContent = '📖 なかまずかん（' + ownedCount + '／' + total + '）';
     let html = '';
-    ALL_CHARS.forEach(function (def) {
+    ALL_CHARS_BY_RARITY.forEach(function (def) {
       const owned = state.owned[def.id];
       const r = def.rarity.toLowerCase();
       if (owned) {
@@ -2512,6 +2705,8 @@
         '<div class="char-detail-talents">得意な時間帯：' + bandText + '</div>' +
         (def.skill ? '<div class="char-detail-skill">固有スキル「' + def.skill.name + '」<br>' + def.skill.desc + '</div>' : '') +
         '<div class="char-detail-power">現在の総合力：<b>' + fmt(power) + '</b></div>' +
+        '<div class="char-detail-memory">🐾 いっしょに旅した日：' + ((state.memories && state.memories[id] && state.memories[id].days) || 0) + '日　' +
+        '☁️ 笑顔にした雲：' + ((state.memories && state.memories[id] && state.memories[id].clouds) || 0) + '個</div>' +
         '<p class="char-detail-flavor">' + def.flavor + '</p>';
     } else {
       html += '<div style="text-align:center;"><img class="char-detail-img" style="cursor:default;filter:brightness(0);opacity:.45;" src="' + img + '" alt=""></div>' +
@@ -2599,10 +2794,12 @@
       } else {
         owned.awaken++;
         noteText = 'かぶり！ 覚醒レベルが +1（Lv' + owned.awaken + '）になったよ。';
+        if (owned.awaken >= BALANCE.awakenMax) addJournalEntry(chosen.name + 'が覚醒MAXになった');
       }
     } else {
       state.owned[chosen.id] = { awaken: 0 };
       noteText = 'はじめまして！ なかまに くわわったよ。';
+      addJournalEntry(chosen.name + 'がなかまになった');
     }
     return noteText;
   }
@@ -2803,7 +3000,7 @@
       html += '<div class="modal-list-item" data-action="clear-party" data-slot="' + slotIndex + '">' +
         '<img src="' + IMG + '" alt=""><div class="mmeta">はずす</div></div>';
     }
-    Object.keys(state.owned).forEach(function (id) {
+    Object.keys(state.owned).sort(function (a, b) { return (CHAR_ORDER_INDEX[a] || 0) - (CHAR_ORDER_INDEX[b] || 0); }).forEach(function (id) {
       if (state.party.indexOf(id) !== -1 && id !== currentId) return; // 他の枠で編成中
       const def = CHAR_MAP[id];
       const owned = state.owned[id];
@@ -2866,6 +3063,7 @@
     runtime.nextSpawnAt = Date.now() + interval;
 
     advanceTownGauge(1);
+    bumpMemoriesForCloudsResolved(1);
     maybeDropItem(stats);
 
     renderHeader(); renderTownBar(); renderMap();
@@ -2962,6 +3160,16 @@
     });
     el.bossCloseBtn.addEventListener('click', function () { el.bossOverlay.style.display = 'none'; });
 
+    el.emakiRoad.addEventListener('click', function (ev) {
+      const node = ev.target.closest('[data-town]');
+      if (!node) return;
+      openTownInfoPopup(parseInt(node.dataset.town, 10));
+    });
+    el.journalMoreBtn.addEventListener('click', function () {
+      journalExpanded = !journalExpanded;
+      renderJournal();
+    });
+
     el.zukanGrid.addEventListener('click', function (ev) {
       const cellEl = ev.target.closest('[data-id]');
       if (!cellEl) return;
@@ -3008,13 +3216,26 @@
     cacheEls();
     renderCloudIcon();
     state = loadState() || defaultState();
+    const needsJournalMigration = (state.journal === undefined); // 旅日記が無い旧セーブ＝マイグレーション対象
     // 欠けているキーの補完（旧セーブ互換）
     const d = defaultState();
     Object.keys(d).forEach(function (k) { if (state[k] === undefined) state[k] = d[k]; });
+    if (needsJournalMigration) {
+      // 汎用補完だと「7/24 旅がはじまった」の1行だけになってしまうので、
+      // 旧セーブ向けにもう少し丁寧な移行データ（起点日＋クリア済み町ぶん）に差し替える
+      state.journal = [{ date: '7/23', text: '旅がはじまった' }];
+      TOWNS.forEach(function (t, i) {
+        if (i < state.townIndex || (i === state.townIndex && state.finalMessageShown)) {
+          state.journal.push({ date: '7/23', text: t.name + 'を元気にした' });
+        }
+      });
+    }
 
     // クラウドに新しい記録があれば採用する（last-write-wins・確認ダイアログなし）
     // ネット未接続やSupabase障害でも失敗を握りつぶして先に進む
     try { await reconcileCloudOnBoot(); } catch (e) { /* 気にせずローカルで続行 */ }
+
+    checkDailyMemoryTick(); // 日付が変わっていたら編成中のなかまのdaysを+1
 
     const now = Date.now();
     const prevLastSeen = state.lastSeen || now;
@@ -3038,6 +3259,7 @@
     }, BALANCE.friendTownIncomeInterval);
     setInterval(function () {
       state.lastSeen = Date.now();
+      checkDailyMemoryTick(); // 開きっぱなしで日付をまたいだ場合もここで拾う
       saveState();
       CloudSync.schedulePush(state);
     }, BALANCE.saveIntervalMs);
@@ -3075,6 +3297,17 @@
     pullGacha10: pullGacha10,
     pullGoldenLetter: pullGoldenLetter,
     currentGacha10Cost: currentGacha10Cost,
+    addJournalEntry: addJournalEntry,
+    ensureMemory: ensureMemory,
+    checkDailyMemoryTick: checkDailyMemoryTick,
+    bumpMemoriesForCloudsResolved: bumpMemoriesForCloudsResolved,
+    todayDateLabel: todayDateLabel,
+    ALL_CHARS_BY_RARITY: ALL_CHARS_BY_RARITY,
+    renderMap: renderMap,
+    renderZukan: renderZukan,
+    advanceTownGauge: advanceTownGauge,
+    openTownInfoPopup: openTownInfoPopup,
+    findJournalDateForTown: findJournalDateForTown,
   };
 
   window.addEventListener('DOMContentLoaded', function () { init(); });
