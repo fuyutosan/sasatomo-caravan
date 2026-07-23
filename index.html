@@ -85,6 +85,12 @@
     opacity: .6;
   }
   .bgm-toggle.on { background: #ffe066; color: #045c0c; border-color: #fff; opacity: 1; }
+  .band-icon-btn {
+    flex: none; font-family: inherit; font-size: 16px; line-height: 1; cursor: pointer;
+    width: 34px; height: 30px; padding: 0;
+    background: rgba(255, 255, 255, .18); color: #fff;
+    border: 2px solid rgba(255, 255, 255, .5); border-radius: 6px;
+  }
   .status { display: flex; justify-content: space-between; font-size: 13px; margin-top: 4px; }
 
   .town {
@@ -109,9 +115,30 @@
     position: relative; height: 250px; overflow: hidden;
     background: #cbb3c8;
     border-bottom: 4px solid var(--dark);
+    transition: filter 2.5s ease; /* 帯の光の色（朝焼け/夜の暗さ）をゆっくりクロスフェードさせる */
   }
+  /* 朝＝夕暮れ素材を暖色寄りに（朝焼けオレンジ）。夜＝暗くする（星は別レイヤーで表示） */
+  .scene.tint-morning { filter: hue-rotate(-25deg) saturate(1.35) brightness(1.12); }
+  .scene.tint-night { filter: brightness(.55) saturate(1.05); }
   .layer { position: absolute; inset: 0; background-repeat: repeat-x; image-rendering: pixelated; }
-  .l-bg    { background-image: url(assets/scene/bg.png); background-size: auto 100%; }
+  /* 空レイヤーは2枚重ねてopacityクロスフェード（帯が変わって絵そのものが変わるのは昼⇔それ以外の時だけ。
+     夕/朝/夜は同じ夕暮れ素材＋.scene側のfilterで表情を変える） */
+  .sky-layer {
+    background-image: url(assets/scene/bg.png); background-size: auto 100%;
+    opacity: 0; transition: opacity 2.5s ease; z-index: 0;
+  }
+  .sky-layer.show { opacity: 1; }
+  .stars {
+    position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    opacity: 0; transition: opacity 2.5s ease;
+  }
+  .stars.show { opacity: 1; }
+  .star {
+    position: absolute; width: 3px; height: 3px; border-radius: 50%;
+    background: #fff; box-shadow: 0 0 4px 1px rgba(255, 255, 255, .8);
+    animation: twinkle 2.2s ease-in-out infinite;
+  }
+  @keyframes twinkle { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
   .l-far   { background-image: url(assets/scene/far.png); background-size: auto 100%; animation: sx425 80s linear infinite; }
   .l-mid   { background-image: url(assets/scene/mountains.png); background-size: auto 100%; animation: sx850 40s linear infinite; }
   .l-trees { background-image: url(assets/scene/trees.png); background-size: auto 100%; animation: sx850 16s linear infinite; }
@@ -431,6 +458,7 @@
   <header>
     <div class="head-row">
       <h1>🐼 笹友キャラバン</h1>
+      <button id="bandIconBtn" class="band-icon-btn" title="いまの時間帯">🌙</button>
       <button id="bgmToggleBtn" class="bgm-toggle" title="BGM ON/OFF" aria-pressed="false">🎵</button>
     </div>
     <div class="status"><span>🎋 笹 <span id="sasaCount">0</span></span><span>✨ パンダさんパワー <span id="powerCount">0</span></span></div>
@@ -441,8 +469,17 @@
     <div class="bar"><div class="fill" id="townFill"></div><span class="pct" id="townPct"></span></div>
   </div>
 
-  <div class="scene">
-    <div class="layer l-bg"></div>
+  <div class="scene" id="sceneEl">
+    <div class="layer sky-layer show" id="skyLayerA"></div>
+    <div class="layer sky-layer" id="skyLayerB"></div>
+    <div class="stars" id="starsEl">
+      <span class="star" style="left:8%; top:16%; animation-delay:.2s;"></span>
+      <span class="star" style="left:24%; top:9%; animation-delay:.9s;"></span>
+      <span class="star" style="left:40%; top:22%; animation-delay:1.5s;"></span>
+      <span class="star" style="left:58%; top:11%; animation-delay:.5s;"></span>
+      <span class="star" style="left:74%; top:24%; animation-delay:1.2s;"></span>
+      <span class="star" style="left:90%; top:13%; animation-delay:1.8s;"></span>
+    </div>
     <div class="layer l-far"></div>
     <div class="layer l-mid"></div>
     <div class="layer l-trees"></div>
@@ -675,6 +712,15 @@
     offlineMinMs: 60 * 1000,
     saveIntervalMs: 1000,
     pityCost: { SSR: 50, UR: 100 }, // おむかえポイントの交換コスト
+    // ── 時間帯システム（時間帯設計.md準拠・端末時計基準の実時間連動） ──
+    timeBands: {
+      morning: { startMin: 5 * 60, endMin: 10 * 60, icon: '🌅', label: 'あさ', longLabel: '朝' },
+      day:     { startMin: 10 * 60, endMin: 16 * 60, icon: '☀️', label: 'ひる', longLabel: '昼' },
+      evening: { startMin: 16 * 60, endMin: 19 * 60, icon: '🌆', label: 'ゆうがた', longLabel: '夕' },
+      night:   { startMin: 19 * 60, endMin: 29 * 60, icon: '🌙', label: 'よる', longLabel: '夜' }, // 19:00〜翌5:00（29*60=翌5:00相当）
+    },
+    timeBandOrder: ['morning', 'day', 'evening', 'night'],
+    timeBandBonus: 0.20, // 得意な時間帯のあいだ、その子の総合力+20%
   };
 
   const SAVE_KEY = 'sasatomo-caravan-v1';
@@ -884,11 +930,19 @@
       return 16 * 8 * eighth; // ループの長さ(秒)
     }
 
+    // 帯が夜のときは「よるのキャラバン」、それ以外は通常の「てくてくキャラバン」をループする。
+    // ループを予約するたび（＝次のループの頭でだけ）帯をチェックするので、再生中に帯をまたいでも
+    // いま鳴っている小節が急に切り替わることはなく、次のループ境界から自然に切り替わる。
+    let currentTrackName = 'day'; // 'day' | 'night'（動作確認用に公開。dayは朝/昼/夕をまとめて指す）
     function loopStep() {
       const t0 = ctx.currentTime + 0.1;
-      const len = scheduleLoop(t0);
+      const band = (typeof getCurrentBand === 'function') ? getCurrentBand() : null;
+      const isNight = band === 'night';
+      currentTrackName = isNight ? 'night' : 'day';
+      const len = isNight ? scheduleNight(t0) : scheduleLoop(t0);
       loopTimer = setTimeout(function () { if (playing) loopStep(); }, (len - 0.3) * 1000);
     }
+    function getCurrentTrack() { return currentTrackName; }
 
     /* ============================================================
      * アレンジ3トラック（bgm_arrange.html・ふゆとさん3曲とも承認済みをそのまま移植）
@@ -1019,7 +1073,8 @@
     return {
       start: start, stop: stop, toggle: toggle, isPlaying: isPlaying, getCtxState: getCtxState,
       playFanfare: playFanfare, getLastFanfareAt: getLastFanfareAt,
-      playBoss: playBoss, playNight: playNight, // 待機搭載（Phase 2 / Phase 1.5まで未使用）
+      playBoss: playBoss, playNight: playNight, // playBossは待機搭載（Phase 2以降まで未使用）。playNightは自動選曲の内部実装として稼働開始。
+      getCurrentTrack: getCurrentTrack, // 検証用：'day'（てくてくキャラバン）| 'night'（よるのキャラバン）
     };
   })();
   window.BgmEngine = BgmEngine; // 動作確認用（Playwright等の外部検証がAudioContextの状態を見られるように）
@@ -1033,48 +1088,50 @@
   // ここ(各キャラのimageフィールド)を差し替えるだけでずかん・詳細・拡大表示すべてに反映される。
   const CHAR_IMG_DEFAULT = 'assets/meimei_dot.png';
 
-  const TAICHO = { id: 'taicho', name: 'たいちょう', rarity: 'R', talents: ['元気くばり上手'], image: CHAR_IMG_DEFAULT,
+  // preferredBand: 'morning'|'day'|'evening'|'night'|null（null=いつでも型・帯ボーナスなしの安定枠）。
+  // 時間帯設計.md §2の割り当てどおり（2026-07-24 時間帯システム完全版で追加）。
+  const TAICHO = { id: 'taicho', name: 'たいちょう', rarity: 'R', talents: ['元気くばり上手'], image: CHAR_IMG_DEFAULT, preferredBand: null,
     flavor: 'キャラバンをまとめる、たよれる隊長さん。今日もみんなを見守っている。', starter: true };
 
   const GACHA_POOL = [
-    { id: 'chacha', name: 'ちゃちゃ', rarity: 'SR', talents: ['元気くばり上手', 'おうえん上手'], image: CHAR_IMG_DEFAULT, flavor: '世話焼きのお姉さん気質。列の後ろまで声をかける。' },
-    { id: 'tekuteku', name: 'てくてく', rarity: 'SR', talents: ['あしがはやい', '笹ひろい上手'], image: CHAR_IMG_DEFAULT, flavor: '歩数を数えるのが趣味。今日も1万歩。' },
-    { id: 'kirari', name: 'きらり', rarity: 'SR', talents: ['みつけ上手', '元気くばり上手'], image: CHAR_IMG_DEFAULT, flavor: '目がいい。地平線の向こうの町を最初に見つける係。' },
-    { id: 'korokoro', name: 'ころころ', rarity: 'R', talents: ['笹ひろい上手'], image: CHAR_IMG_DEFAULT, flavor: '坂道が得意。転がるだけで仕事になる。' },
-    { id: 'mochimochi', name: 'もちもち', rarity: 'R', talents: ['笹ひろい上手'], image: CHAR_IMG_DEFAULT, flavor: 'ほっぺが名物。さわると元気が出ると評判。' },
-    { id: 'runrun', name: 'るんるん', rarity: 'R', talents: ['おうえん上手'], image: CHAR_IMG_DEFAULT, flavor: '機嫌がいい。理由はとくにない。' },
-    { id: 'hokuhoku', name: 'ほくほく', rarity: 'R', talents: ['みつけ上手'], image: CHAR_IMG_DEFAULT, flavor: '掘りものが得意。たけのこ発見率No.1。' },
-    { id: 'moonwalk', name: 'ムーンウォーク', rarity: 'R', talents: ['あしがはやい'], image: CHAR_IMG_DEFAULT, flavor: 'うしろ向きに歩いてるのに、なぜかちゃんと前に進む。本人にも理由はわからない。' },
-    { id: 'sasanoha', name: 'ささのは', rarity: 'N', talents: ['笹ひろい上手'], image: CHAR_IMG_DEFAULT, flavor: '笹のことなら任せて、が口ぐせの新人。' },
-    { id: 'takenoko', name: 'たけのこ', rarity: 'N', talents: ['笹ひろい上手'], image: CHAR_IMG_DEFAULT, flavor: '掘りたてみたいに元気。伸びしろしかない。' },
-    { id: 'kotsubu', name: 'こつぶ', rarity: 'N', talents: ['みつけ上手'], image: CHAR_IMG_DEFAULT, flavor: '小さいから低いところの落としものに強い。' },
-    { id: 'mameta', name: 'まめた', rarity: 'N', talents: ['あしがはやい'], image: CHAR_IMG_DEFAULT, flavor: 'まめに走る。まめに休む。' },
-    { id: 'ohayou', name: 'おはよう', rarity: 'N', talents: ['元気くばり上手'], image: CHAR_IMG_DEFAULT, flavor: '挨拶が名前になった子。夕方でも「おはよう」。' },
-    { id: 'mogumogu', name: 'もぐもぐ', rarity: 'N', talents: ['笹ひろい上手'], image: CHAR_IMG_DEFAULT, flavor: 'もぐもぐ食べてるだけなのに、なぜか笹がたくさん集まってくる。' },
+    { id: 'chacha', name: 'ちゃちゃ', rarity: 'SR', talents: ['元気くばり上手', 'おうえん上手'], image: CHAR_IMG_DEFAULT, preferredBand: null, flavor: '世話焼きのお姉さん気質。列の後ろまで声をかける。' },
+    { id: 'tekuteku', name: 'てくてく', rarity: 'SR', talents: ['あしがはやい', '笹ひろい上手'], image: CHAR_IMG_DEFAULT, preferredBand: null, flavor: '歩数を数えるのが趣味。今日も1万歩。' },
+    { id: 'kirari', name: 'きらり', rarity: 'SR', talents: ['みつけ上手', '元気くばり上手'], image: CHAR_IMG_DEFAULT, preferredBand: 'evening', flavor: '目がいい。地平線の向こうの町を最初に見つける係。' },
+    { id: 'korokoro', name: 'ころころ', rarity: 'R', talents: ['笹ひろい上手'], image: CHAR_IMG_DEFAULT, preferredBand: null, flavor: '坂道が得意。転がるだけで仕事になる。' },
+    { id: 'mochimochi', name: 'もちもち', rarity: 'R', talents: ['笹ひろい上手'], image: CHAR_IMG_DEFAULT, preferredBand: null, flavor: 'ほっぺが名物。さわると元気が出ると評判。' },
+    { id: 'runrun', name: 'るんるん', rarity: 'R', talents: ['おうえん上手'], image: CHAR_IMG_DEFAULT, preferredBand: null, flavor: '機嫌がいい。理由はとくにない。' },
+    { id: 'hokuhoku', name: 'ほくほく', rarity: 'R', talents: ['みつけ上手'], image: CHAR_IMG_DEFAULT, preferredBand: 'evening', flavor: '掘りものが得意。たけのこ発見率No.1。' },
+    { id: 'moonwalk', name: 'ムーンウォーク', rarity: 'R', talents: ['あしがはやい'], image: CHAR_IMG_DEFAULT, preferredBand: 'night', flavor: 'うしろ向きに歩いてるのに、なぜかちゃんと前に進む。本人にも理由はわからない。' },
+    { id: 'sasanoha', name: 'ささのは', rarity: 'N', talents: ['笹ひろい上手'], image: CHAR_IMG_DEFAULT, preferredBand: null, flavor: '笹のことなら任せて、が口ぐせの新人。' },
+    { id: 'takenoko', name: 'たけのこ', rarity: 'N', talents: ['笹ひろい上手'], image: CHAR_IMG_DEFAULT, preferredBand: 'day', flavor: '掘りたてみたいに元気。伸びしろしかない。' },
+    { id: 'kotsubu', name: 'こつぶ', rarity: 'N', talents: ['みつけ上手'], image: CHAR_IMG_DEFAULT, preferredBand: null, flavor: '小さいから低いところの落としものに強い。' },
+    { id: 'mameta', name: 'まめた', rarity: 'N', talents: ['あしがはやい'], image: CHAR_IMG_DEFAULT, preferredBand: 'day', flavor: 'まめに走る。まめに休む。' },
+    { id: 'ohayou', name: 'おはよう', rarity: 'N', talents: ['元気くばり上手'], image: CHAR_IMG_DEFAULT, preferredBand: 'morning', flavor: '挨拶が名前になった子。夕方でも「おはよう」。' },
+    { id: 'mogumogu', name: 'もぐもぐ', rarity: 'N', talents: ['笹ひろい上手'], image: CHAR_IMG_DEFAULT, preferredBand: 'day', flavor: 'もぐもぐ食べてるだけなのに、なぜか笹がたくさん集まってくる。' },
     // ── SSR（5人・得意2つ＋固有スキル） ──
-    { id: 'gorogoro', name: 'ごろごろ', rarity: 'SSR', talents: ['笹ひろい上手', 'おうえん上手'], image: CHAR_IMG_DEFAULT,
+    { id: 'gorogoro', name: 'ごろごろ', rarity: 'SSR', talents: ['笹ひろい上手', 'おうえん上手'], image: CHAR_IMG_DEFAULT, preferredBand: 'day',
       skill: { name: 'ごろごろ収穫祭', desc: '笹収入+30%' },
       flavor: '転がって移動する省エネの達人。転がった跡に笹が集まる不思議。' },
-    { id: 'pikapika', name: 'ぴかぴか', rarity: 'SSR', talents: ['元気くばり上手', 'みつけ上手'], image: CHAR_IMG_DEFAULT,
+    { id: 'pikapika', name: 'ぴかぴか', rarity: 'SSR', talents: ['元気くばり上手', 'みつけ上手'], image: CHAR_IMG_DEFAULT, preferredBand: 'day',
       skill: { name: 'キラキラスマイル', desc: '浄化力+25%' },
       flavor: '笑顔がまぶしすぎて夜道で光る。本人は無自覚。' },
-    { id: 'onpu', name: 'おんぷ', rarity: 'SSR', talents: ['おうえん上手', '元気くばり上手'], image: CHAR_IMG_DEFAULT,
+    { id: 'onpu', name: 'おんぷ', rarity: 'SSR', talents: ['おうえん上手', '元気くばり上手'], image: CHAR_IMG_DEFAULT, preferredBand: null,
       skill: { name: 'おうえんマーチ', desc: 'メンバー全員の総合力+8%' },
       flavor: '歩くとき鼻歌がとまらない。キャラバンの音楽隊長。' },
-    { id: 'hanamaru', name: 'はなまる', rarity: 'SSR', talents: ['みつけ上手', '笹ひろい上手'], image: CHAR_IMG_DEFAULT,
+    { id: 'hanamaru', name: 'はなまる', rarity: 'SSR', talents: ['みつけ上手', '笹ひろい上手'], image: CHAR_IMG_DEFAULT, preferredBand: 'day',
       skill: { name: 'はなまるチェック', desc: 'とっておき以上のドロップ率+20%' },
       flavor: 'なんでも採点したがる。いい道具を見つけると「はなまる！」と叫ぶ。' },
-    { id: 'mikazuki', name: 'みかづき', rarity: 'SSR', talents: ['あしがはやい', 'みつけ上手'], image: CHAR_IMG_DEFAULT,
+    { id: 'mikazuki', name: 'みかづき', rarity: 'SSR', talents: ['あしがはやい', 'みつけ上手'], image: CHAR_IMG_DEFAULT, preferredBand: 'night',
       skill: { name: 'よみちをてくてく', desc: '夜（21時〜6時）の旅の速度+30%' },
       flavor: '夜ふかしの常習犯。月を見上げて歩くのでよく転ぶ。' },
     // ── UR（3人・得意3つ＋強力スキル） ──
-    { id: 'nagareboshi', name: 'ながれぼし', rarity: 'UR', talents: ['みつけ上手', 'あしがはやい', 'おうえん上手'], image: CHAR_IMG_DEFAULT,
+    { id: 'nagareboshi', name: 'ながれぼし', rarity: 'UR', talents: ['みつけ上手', 'あしがはやい', 'おうえん上手'], image: CHAR_IMG_DEFAULT, preferredBand: 'night',
       skill: { name: 'ねがいごとシャワー', desc: 'るすばん報告の道具が必ず1つ増える' },
       flavor: '流れ星の夜にだけ現れると噂の旅びと。願いごとを叶えるのが生きがい。' },
-    { id: 'otsukisama', name: 'おつきさま', rarity: 'UR', talents: ['おうえん上手', '元気くばり上手', '笹ひろい上手'], image: CHAR_IMG_DEFAULT,
+    { id: 'otsukisama', name: 'おつきさま', rarity: 'UR', talents: ['おうえん上手', '元気くばり上手', '笹ひろい上手'], image: CHAR_IMG_DEFAULT, preferredBand: 'night',
       skill: { name: 'おやすみのうた', desc: 'るすばん時間を1.5倍で計算' },
       flavor: 'みんなが眠っている間も旅を見守る、まんまるやさしい大きな子。' },
-    { id: 'hatsuhinode', name: 'はつひので', rarity: 'UR', talents: ['元気くばり上手', 'あしがはやい', 'みつけ上手'], image: CHAR_IMG_DEFAULT,
+    { id: 'hatsuhinode', name: 'はつひので', rarity: 'UR', talents: ['元気くばり上手', 'あしがはやい', 'みつけ上手'], image: CHAR_IMG_DEFAULT, preferredBand: 'morning',
       skill: { name: 'あさひのごあいさつ', desc: '5時〜10時のあいだ浄化パワー2倍' },
       flavor: '朝いちばんの光といっしょに走ってくる。会えた日はいいことがある。' },
   ];
@@ -1157,10 +1214,28 @@
   function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
   function uid() { return 'it' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
   // 端末時刻の時間帯判定（簡易版：startH<=endHなら日中区間、startH>endHなら日またぎ区間として扱う）
+  // ※みかづき（夜21-6時）・はつひので（朝5-10時）の固有スキルの時間窓はこちらを使う（帯の境界とは別管理）
   function timeInRange(hour, startH, endH) {
     if (startH <= endH) return hour >= startH && hour < endH;
     return hour >= startH || hour < endH;
   }
+
+  /* ============================================================
+   * 時間帯システム（時間帯設計.md準拠）
+   * 分単位(0〜1439)で判定：朝5:00-10:00／昼10:00-16:00／夕16:00-19:00／夜19:00-翌5:00
+   * ============================================================ */
+  function getBandForMinutes(totalMin) {
+    const b = BALANCE.timeBands;
+    if (totalMin >= b.morning.startMin && totalMin < b.morning.endMin) return 'morning';
+    if (totalMin >= b.day.startMin && totalMin < b.day.endMin) return 'day';
+    if (totalMin >= b.evening.startMin && totalMin < b.evening.endMin) return 'evening';
+    return 'night'; // 19:00〜23:59 と 0:00〜4:59 の両方がここに落ちる（日またぎの夜）
+  }
+  function getCurrentBand(dateObj) {
+    const d = dateObj || new Date();
+    return getBandForMinutes(d.getHours() * 60 + d.getMinutes());
+  }
+  const BAND_ICON_FALLBACK = '🔄'; // いつでも型（preferredBand===null）のアイコン
 
   /* ============================================================
    * セーブデータ
@@ -1378,7 +1453,13 @@
     return Math.round(BALANCE.gachaBaseCost * Math.pow(BALANCE.gachaCostGrowth, state.gachaPulls));
   }
 
-  function computeStats() {
+  // overrideBand/overrideHour：るすばん全帯精算のセグメント評価で「そのセグメントの帯・時刻」を明示指定するための引数。
+  // 省略時（通常のリアルタイム描画）は端末の「いま」を使う。
+  function computeStats(overrideBand, overrideHour) {
+    const now = new Date();
+    const band = overrideBand || getCurrentBand(now);
+    const hour = (overrideHour !== undefined && overrideHour !== null) ? overrideHour : now.getHours();
+
     const members = [];
     state.party.forEach(function (id) {
       if (!id) return;
@@ -1388,13 +1469,19 @@
     });
 
     let baseSum = 0;
-    const talentCounts = {};
-    TALENTS.forEach(function (t) { talentCounts[t] = 0; });
+    const talentCounts = {};       // 得意の頭数（編成ボーナスの判定＝specialty2/3やbalanceは「何人が持っているか」なのでそのまま使う）
+    const talentWeightedCounts = {}; // 得意の重み付き人数（得意な時間帯に一致するメンバーは1.2人ぶんとして数える＝るすばんの実際の稼ぎに+20%が反映される）
+    TALENTS.forEach(function (t) { talentCounts[t] = 0; talentWeightedCounts[t] = 0; });
     const primaryTalents = [];
     members.forEach(function (m) {
       const base = BALANCE.baseStatByRarity[m.def.rarity];
-      baseSum += base * (1 + BALANCE.awakenBonusPerLevel * m.awaken);
-      m.def.talents.forEach(function (t) { talentCounts[t] = (talentCounts[t] || 0) + 1; });
+      const bandMatch = m.def.preferredBand && m.def.preferredBand === band;
+      const bandMult = bandMatch ? (1 + BALANCE.timeBandBonus) : 1; // 得意な時間帯+20%
+      baseSum += base * (1 + BALANCE.awakenBonusPerLevel * m.awaken) * bandMult;
+      m.def.talents.forEach(function (t) {
+        talentCounts[t] = (talentCounts[t] || 0) + 1;
+        talentWeightedCounts[t] = (talentWeightedCounts[t] || 0) + bandMult;
+      });
       primaryTalents.push(m.def.talents[0]);
     });
 
@@ -1418,7 +1505,8 @@
     }
 
     function talentMult(name) {
-      let m = 1 + (talentCounts[name] || 0) * BALANCE.talentBonusPerMember;
+      // 得意な時間帯に一致するメンバーぶんは重み1.2で数える（=その子のぶんだけ+20%が実際の稼ぎに反映される）
+      let m = 1 + (talentWeightedCounts[name] || 0) * BALANCE.talentBonusPerMember;
       if (formationType === 'balance') m += BALANCE.formationBalanceBonus;
       return m;
     }
@@ -1448,9 +1536,8 @@
       });
     });
 
-    // ── SSR/UR 固有スキル（編成に入っているときだけ発動・端末時刻で簡易判定） ──
+    // ── SSR/UR 固有スキル（編成に入っているときだけ発動。みかづき・はつひのでは帯より狭い専用の時刻窓を持つ） ──
     function inParty(id) { return state.party.indexOf(id) !== -1; }
-    const hour = new Date().getHours();
     if (inParty('gorogoro')) sasaMult += 0.30;                                 // ごろごろ「ごろごろ収穫祭」笹収入+30%
     if (inParty('pikapika')) purifyMult += 0.25;                              // ぴかぴか「キラキラスマイル」浄化力+25%
     if (inParty('onpu')) totalPower *= 1.08;                                  // おんぷ「おうえんマーチ」総合力+8%
@@ -1466,6 +1553,7 @@
       formationType: formationType, formationTalent: formationTalent,
       memberCount: members.length, hasMoonwalk: state.party.indexOf('moonwalk') !== -1,
       hasHanamaru: hasHanamaru, hasNagareboshi: hasNagareboshi, offlineTimeMult: offlineTimeMult,
+      band: band, hour: hour,
     };
   }
 
@@ -1572,42 +1660,140 @@
   }
 
   /* ============================================================
-   * るすばん報告（オフライン進行）
+   * るすばん報告（オフライン進行・るすばん全帯精算）
+   * 時間帯設計.md §3準拠：るすばん時間（12hキャップ後）を通過した時間帯ごとのセグメントに分割し、
+   * セグメントごとに「その帯の得意+20%・時刻依存スキル」を反映したレートで計算して合算する。
    * ============================================================ */
-  function applyOfflineReport(elapsedMs) {
-    const stats = computeStats();
-    // 実際に離れていた時間をまず12hキャップで丸め、そのあとにおつきさま「おやすみのうた」の1.5倍を掛ける。
-    // （キャップ前に1.5倍すると、長時間離れたときはどのみち12hキャップに張り付いて差が出なくなってしまうため、
-    //   このスキルの「るすばん時間を1.5倍で計算」という効果が最大離脱時でもきちんと効くようにこの順番にしている）
-    const cappedRaw = Math.min(elapsedMs, BALANCE.offlineCapMs);
-    const capped = cappedRaw * (stats.offlineTimeMult || 1);
+  const TALENT_VERB = {
+    '元気くばり上手': 'もやもや雲をたくさん笑顔にして',
+    '笹ひろい上手': '笹をたくさんひろって',
+    'あしがはやい': 'はしりまわって',
+    'みつけ上手': '旅道具をみつけて',
+    'おうえん上手': 'みんなを応援して',
+  };
+
+  // るすばん期間[fromMs,toMs)を、帯境界(5/10/16/19時)＋みかづき/はつひのでの専用時刻窓の境界(21時)で区切り、
+  // [{start,end,band,hour}, ...] を返す純関数（Playwright等の外部検証がevaluateで直接呼べるように公開もする）
+  function splitIntoBandSegments(fromMs, toMs) {
+    const segments = [];
+    let cursor = fromMs;
+    const BOUND_HOURS = [5, 10, 16, 19, 21];
+    let guard = 0;
+    while (cursor < toMs && guard < 200) {
+      guard++;
+      const d = new Date(cursor);
+      let nextBoundaryMs = toMs;
+      for (let h = 0; h < BOUND_HOURS.length; h++) {
+        const candidate = new Date(d.getFullYear(), d.getMonth(), d.getDate(), BOUND_HOURS[h], 0, 0, 0);
+        let candMs = candidate.getTime();
+        if (candMs <= cursor) candMs += 24 * 3600 * 1000; // 今日のその境界はもう過ぎていれば翌日ぶんを見る
+        if (candMs < nextBoundaryMs) nextBoundaryMs = candMs;
+      }
+      const segEnd = Math.min(nextBoundaryMs, toMs);
+      if (segEnd <= cursor) break; // 安全弁（本来到達しない）
+      segments.push({ start: cursor, end: segEnd, band: getCurrentBand(d), hour: d.getHours() });
+      cursor = segEnd;
+    }
+    return segments;
+  }
+
+  // 1セグメントぶんの雲消化数・獲得量を計算する純関数（statsは呼び出し側でそのセグメントの帯/時刻ぶんを計算済みのものを渡す）
+  function calcSegmentRewards(stats, durationMs) {
+    if (durationMs <= 0) return { clouds: 0, sasaGain: 0, powerGain: 0 };
     const avgInterval = ((BALANCE.cloudIntervalMin + BALANCE.cloudIntervalMax) / 2) / stats.speedMult;
     const avgPurify = Math.max(BALANCE.cloudBaseTimeMin, BALANCE.cloudBaseTime / stats.purifyMult);
     const cycle = avgInterval + avgPurify;
-    const clouds = Math.max(0, Math.floor(capped / cycle));
-
+    const clouds = Math.max(0, Math.floor(durationMs / cycle));
     let sasaGain = 0, powerGain = 0;
     for (let i = 0; i < clouds; i++) {
       sasaGain += Math.round(rand(BALANCE.sasaRewardMin, BALANCE.sasaRewardMax) * stats.sasaMult);
       powerGain += Math.round(rand(BALANCE.powerRewardMin, BALANCE.powerRewardMax) * stats.purifyMult);
     }
-    state.sasa += sasaGain;
-    state.pandaPower += powerGain;
-    advanceTownGauge(clouds);
+    return { clouds: clouds, sasaGain: sasaGain, powerGain: powerGain };
+  }
 
-    const dropChance = Math.min(BALANCE.dropChanceCap, BALANCE.dropBaseChance * stats.findMult);
+  // るすばん全帯精算の本体（純関数：state更新はせず計算結果だけを返す。呼び出し元のapplyOfflineReportがstateに反映する）
+  function calcOfflineRewards(fromMs, toMs) {
+    const liveStats = computeStats(); // いまの編成でのスキル所持判定（ながれぼし・はなまる・おつきさま倍率・findMult）に使う
+    const rawSpan = Math.max(0, toMs - fromMs);
+    const cappedSpan = Math.min(rawSpan, BALANCE.offlineCapMs);
+    const cappedFromMs = toMs - cappedSpan;
+    // おつきさま「おやすみのうた」：12hキャップ後の経過時間を1.5倍に引き伸ばしてから帯精算する
+    // （キャップ前に伸ばすと長時間るすばん時はどのみち12hに張り付いて差が出なくなるため、キャップ後に伸ばす＝全帯合算後に適用の趣旨を反映）
+    const effectiveSpan = cappedSpan * (liveStats.offlineTimeMult || 1);
+    const virtualToMs = cappedFromMs + effectiveSpan;
+
+    const segments = splitIntoBandSegments(cappedFromMs, virtualToMs);
+    let totalClouds = 0, totalSasa = 0, totalPower = 0;
+    const bandTotals = {};
+    const bandOrder = [];
+    segments.forEach(function (seg) {
+      const segStats = computeStats(seg.band, seg.hour);
+      const r = calcSegmentRewards(segStats, seg.end - seg.start);
+      totalClouds += r.clouds; totalSasa += r.sasaGain; totalPower += r.powerGain;
+      if (!bandTotals[seg.band]) { bandTotals[seg.band] = { clouds: 0, sasaGain: 0, powerGain: 0 }; bandOrder.push(seg.band); }
+      bandTotals[seg.band].clouds += r.clouds;
+      bandTotals[seg.band].sasaGain += r.sasaGain;
+      bandTotals[seg.band].powerGain += r.powerGain;
+    });
+
+    const dropChance = Math.min(BALANCE.dropChanceCap, BALANCE.dropBaseChance * liveStats.findMult);
     let itemsGain = 0;
-    for (let i = 0; i < clouds && itemsGain < 3; i++) {
+    for (let i = 0; i < totalClouds && itemsGain < 3; i++) {
       if (Math.random() < dropChance) itemsGain++;
     }
-    if (stats.hasNagareboshi) itemsGain += 1; // ながれぼし「ねがいごとシャワー」：道具が必ず1つ増える
-    for (let i = 0; i < itemsGain; i++) {
-      const item = generateItem(stats.hasHanamaru);
+    if (liveStats.hasNagareboshi) itemsGain += 1; // ながれぼし「ねがいごとシャワー」：全帯合算後に+1確定
+
+    return {
+      clouds: totalClouds, sasaGain: totalSasa, powerGain: totalPower, itemsGain: itemsGain,
+      hasHanamaru: liveStats.hasHanamaru,
+      bandTotals: bandTotals, bandOrder: bandOrder, segments: segments,
+    };
+  }
+
+  // 編成の中から、指定の帯を得意とする最初の子を探す（るすばん報告の主役決め用）
+  function pickBandChampion(band) {
+    for (let i = 0; i < state.party.length; i++) {
+      const id = state.party[i];
+      if (!id) continue;
+      const def = CHAR_MAP[id];
+      if (def && def.preferredBand === band) return def;
+    }
+    return null;
+  }
+
+  // 帯別の物語行を作る（通過した帯ごとに最大1行・最大4行。該当する得意な子が編成にいなければ汎用フォールバック文）
+  function buildBandStoryLines(bandOrder, bandTotals) {
+    const lines = [];
+    bandOrder.forEach(function (band) {
+      const totals = bandTotals[band];
+      if (!totals || totals.clouds <= 0) return;
+      const info = BALANCE.timeBands[band];
+      const champion = pickBandChampion(band);
+      if (champion) {
+        const verb = TALENT_VERB[champion.talents[0]] || 'がんばって';
+        lines.push(info.icon + ' ' + info.label + 'は ' + champion.name + 'が ' + verb + '、笹を ' + fmt(totals.sasaGain) + '本 あつめたよ！');
+      } else {
+        lines.push(info.icon + ' ' + info.label + 'は みんなで こつこつ あつめたよ');
+      }
+    });
+    return lines;
+  }
+
+  // state更新をともなう入口（fromMs=前回るすばん開始時刻, toMs=いま）。計算自体はcalcOfflineRewardsに委譲する。
+  function applyOfflineReport(fromMs, toMs) {
+    const result = calcOfflineRewards(fromMs, toMs);
+    state.sasa += result.sasaGain;
+    state.pandaPower += result.powerGain;
+    advanceTownGauge(result.clouds);
+    for (let i = 0; i < result.itemsGain; i++) {
+      const item = generateItem(result.hasHanamaru);
       item.newFlag = computeIsNew(item);
       addItemToInventory(item);
       state.lastDrop = item;
     }
-    return { clouds: clouds, sasaGain: sasaGain, powerGain: powerGain, itemsGain: itemsGain };
+    result.storyLines = buildBandStoryLines(result.bandOrder, result.bandTotals);
+    return result;
   }
 
   /* ============================================================
@@ -1630,7 +1816,8 @@
      'importShowBtn', 'importBox', 'importTextarea', 'importRunBtn', 'importMsg',
      'cloudCard', 'cloudDisconnectedBox', 'cloudConnectedBox', 'cloudConnectedName',
      'cloudNameInput', 'cloudSecretInput', 'cloudConnectBtn', 'cloudDisconnectBtn', 'cloudMsg',
-     'bgmToggleBtn', 'xShareBtn'
+     'bgmToggleBtn', 'xShareBtn',
+     'sceneEl', 'skyLayerA', 'skyLayerB', 'starsEl', 'bandIconBtn'
     ].forEach(function (id) { el[id] = q(id); });
   }
 
@@ -1682,6 +1869,70 @@
     el.moyamoyaEl.innerHTML = inner + '<span class="label">もやもや雲</span>';
   }
 
+  /* ============================================================
+   * 時間帯の見た目（空のクロスフェード・光の色・星・ヘッダー帯アイコン）
+   * ============================================================ */
+  const runtimeSky = { activeLayer: 'A', currentBand: null };
+  function skyImageForBand(band) {
+    // 昼だけ実際に絵が違う（Sunny Land・青空）。朝/夕/夜は現行の夕暮れ素材＋.sceneのfilterで表情を変える
+    return band === 'day' ? 'assets/scene/sky_day.png' : 'assets/scene/bg.png';
+  }
+  // 指定した要素だけ一瞬だけtransitionを無効化してからfnを実行する（起動時の「即時反映」用。
+  // .sky-layer/.sceneには常時transitionがかかっているので、これをしないと初回描画も2.5秒かけてフェードしてしまう）
+  function withNoTransition(elems, fn) {
+    elems.forEach(function (e) { e.style.transition = 'none'; });
+    fn();
+    elems.forEach(function (e) { void e.offsetHeight; }); // 強制リフローで即時反映させる
+    requestAnimationFrame(function () {
+      elems.forEach(function (e) { e.style.transition = ''; });
+    });
+  }
+
+  // immediate=true：起動時など即時反映（クロスフェードしない）／false：帯またぎ検知時にゆっくり切り替える
+  function applyBandVisuals(immediate) {
+    const band = getCurrentBand();
+    const changed = band !== runtimeSky.currentBand;
+    if (!changed && !immediate) return; // 帯が変わっていなければ何もしない（20秒おきに呼ばれても軽い）
+    const info = BALANCE.timeBands[band];
+
+    const targetImgCss = 'url(' + skyImageForBand(band) + ')';
+    const activeEl = runtimeSky.activeLayer === 'A' ? el.skyLayerA : el.skyLayerB;
+    const inactiveEl = runtimeSky.activeLayer === 'A' ? el.skyLayerB : el.skyLayerA;
+    const applyLightingClasses = function () {
+      el.sceneEl.classList.toggle('tint-morning', band === 'morning');
+      el.sceneEl.classList.toggle('tint-night', band === 'night');
+      el.starsEl.classList.toggle('show', band === 'night');
+    };
+
+    if (activeEl.style.backgroundImage !== targetImgCss) {
+      inactiveEl.style.backgroundImage = targetImgCss;
+      if (immediate) {
+        withNoTransition([activeEl, inactiveEl, el.sceneEl, el.starsEl], function () {
+          activeEl.classList.remove('show');
+          inactiveEl.classList.add('show');
+          applyLightingClasses();
+        });
+      } else {
+        // opacity/filterのtransitionにまかせてゆっくりクロスフェードさせる（2.5秒）
+        requestAnimationFrame(function () {
+          inactiveEl.classList.add('show');
+          activeEl.classList.remove('show');
+          applyLightingClasses();
+        });
+      }
+      runtimeSky.activeLayer = runtimeSky.activeLayer === 'A' ? 'B' : 'A';
+    } else if (immediate) {
+      withNoTransition([el.sceneEl, el.starsEl], applyLightingClasses);
+    } else {
+      applyLightingClasses();
+    }
+
+    el.bandIconBtn.textContent = info.icon;
+    el.bandIconBtn.dataset.band = band;
+    runtimeSky.currentBand = band;
+    // 🎵ONのときのBGM帯切替はBgmEngine.loopStep()がループ予約のたびにgetCurrentBand()を直接見て決めるので、ここでは何もしなくてよい
+  }
+
   function renderScene() {
     const members = state.party.filter(Boolean);
     let html = '<div class="wagonwrap"><span class="sasa">🎋🎋</span><img class="wagon" src="assets/scene/wagon.png" alt="ほろ馬車"></div>';
@@ -1695,6 +1946,11 @@
     el.caravanEl.innerHTML = html;
   }
 
+  // 得意な時間帯アイコン（いつでも型はBAND_ICON_FALLBACK＝🔄）
+  function bandIconFor(def) {
+    return def.preferredBand ? BALANCE.timeBands[def.preferredBand].icon : BAND_ICON_FALLBACK;
+  }
+
   function renderPartyPanel() {
     const stats = computeStats();
     let html = '';
@@ -1706,7 +1962,7 @@
         const def = CHAR_MAP[id];
         const owned = state.owned[id] || { awaken: 0 };
         html += '<div class="slot" data-slot="' + i + '"><img src="' + (def.image || IMG) + '" alt="">' +
-          '<b>' + def.name + (owned.awaken > 0 ? ' ★' + owned.awaken : '') + '</b>' +
+          '<b>' + bandIconFor(def) + ' ' + def.name + (owned.awaken > 0 ? ' ★' + owned.awaken : '') + '</b>' +
           '<i>' + def.talents.join('・') + '</i></div>';
       }
     }
@@ -1915,10 +2171,14 @@
       const awaken = owned.awaken || 0;
       const power = BALANCE.baseStatByRarity[def.rarity] * (1 + BALANCE.awakenBonusPerLevel * awaken);
       const r = def.rarity.toLowerCase();
+      const bandText = def.preferredBand
+        ? BALANCE.timeBands[def.preferredBand].icon + ' ' + BALANCE.timeBands[def.preferredBand].longLabel + '型（総合力+20%）'
+        : BAND_ICON_FALLBACK + ' いつでも型（安定枠）';
       html += '<div style="text-align:center;"><img class="char-detail-img" id="charDetailImg" src="' + img + '" alt=""></div>' +
         '<div class="char-detail-name">' + def.name + (awaken > 0 ? ' ★' + awaken : '') + '</div>' +
         '<div><span class="zbadge b-' + r + '" style="display:inline-block;font-size:11px;margin-top:4px;">' + def.rarity + '</span></div>' +
         '<div class="char-detail-talents">得意：' + def.talents.join('・') + '</div>' +
+        '<div class="char-detail-talents">得意な時間帯：' + bandText + '</div>' +
         (def.skill ? '<div class="char-detail-skill">固有スキル「' + def.skill.name + '」<br>' + def.skill.desc + '</div>' : '') +
         '<div class="char-detail-power">現在の総合力：<b>' + fmt(power) + '</b></div>' +
         '<p class="char-detail-flavor">' + def.flavor + '</p>';
@@ -1981,6 +2241,9 @@
     const diary = pickRandom(DIARY_LINES);
     el.reportDiary.textContent = 'おかえりなさい！　るすばんの間にね…　' + diary;
     let items = [];
+    if (report.storyLines && report.storyLines.length > 0) {
+      report.storyLines.forEach(function (line) { items.push(line); });
+    }
     items.push('☁️ もやもや雲を ' + report.clouds + 'コ 笑顔にしたよ！');
     items.push('🎋 笹を ' + fmt(report.sasaGain) + '本 ひろったよ！');
     if (report.itemsGain > 0) items.push('🎁 旅道具を ' + report.itemsGain + 'つ 見つけたよ！');
@@ -2297,6 +2560,12 @@
       el.bgmToggleBtn.classList.toggle('on', nowOn);
       el.bgmToggleBtn.setAttribute('aria-pressed', nowOn ? 'true' : 'false');
     });
+
+    el.bandIconBtn.addEventListener('click', function () {
+      const band = runtimeSky.currentBand || getCurrentBand();
+      const info = BALANCE.timeBands[band];
+      showToast('いまは' + info.icon + info.label + '。' + info.longLabel + '型のなかまが張りきる時間だよ');
+    });
   }
 
   /* ============================================================
@@ -2316,13 +2585,13 @@
 
     const now = Date.now();
     const prevLastSeen = state.lastSeen || now;
-    const elapsed = now - prevLastSeen;
     let report = null;
-    if (elapsed >= BALANCE.offlineMinMs) report = applyOfflineReport(elapsed);
+    if (now - prevLastSeen >= BALANCE.offlineMinMs) report = applyOfflineReport(prevLastSeen, now);
     state.lastSeen = now;
 
     renderAll();
     renderCloudPanel();
+    applyBandVisuals(true); // 起動時の帯は即時反映（クロスフェードしない）
     if (report) showReportCard(report); else el.reportCard.style.display = 'none';
 
     runtime.nextSpawnAt = now + rand(BALANCE.firstCloudMin, BALANCE.firstCloudMax);
@@ -2339,6 +2608,7 @@
       saveState();
       CloudSync.schedulePush(state);
     }, BALANCE.saveIntervalMs);
+    setInterval(function () { applyBandVisuals(false); }, 20000); // 帯またぎをこまめに検知（またいだらクロスフェード）
 
     bindUIEvents();
     saveState();
@@ -2353,6 +2623,11 @@
     autoEquipBest: autoEquipBest,
     obtainCharacter: obtainCharacter,
     applyOfflineReport: applyOfflineReport,
+    calcOfflineRewards: calcOfflineRewards,
+    splitIntoBandSegments: splitIntoBandSegments,
+    getCurrentBand: getCurrentBand,
+    getBandForMinutes: getBandForMinutes,
+    applyBandVisuals: applyBandVisuals,
     renderAll: renderAll,
     saveState: saveState,
     CHAR_MAP: CHAR_MAP,
