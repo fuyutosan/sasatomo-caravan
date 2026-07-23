@@ -1,6 +1,6 @@
 // 笹友キャラバン — オフライン対応サービスワーカー（充電器v2方式）
 // index.html はネットワーク優先（更新が即届く）、失敗時だけキャッシュ
-const CACHE = 'sasatomo-caravan-v3'; // v3: 時間帯システム（昼の空sky_day.pngを追加）
+const CACHE = 'sasatomo-caravan-v5'; // v5: 絵巻マップ（house.pngを追加。v4は欠番）
 const ASSETS = [
   './',
   './index.html',
@@ -20,6 +20,7 @@ const ASSETS = [
   './assets/scene/bush.png',
   './assets/scene/wagon.png',
   './assets/scene/moyamoya.png',
+  './assets/scene/house.png',
   './assets/icons/chest_futsu.png',
   './assets/icons/chest_suteki.png',
   './assets/icons/chest_totteoki.png',
