@@ -723,17 +723,17 @@
       o.connect(g); g.connect(master);
       o.start(t); o.stop(t + dur + 0.02);
     }
-    function playKick(t) {
+    function playKick(t, vol) {
       const o = ctx.createOscillator(), g = ctx.createGain();
       o.type = 'sine';
       o.frequency.setValueAtTime(110, t);
       o.frequency.exponentialRampToValueAtTime(45, t + 0.09);
-      g.gain.setValueAtTime(0.35, t);
+      g.gain.setValueAtTime(vol || 0.35, t);
       g.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
       o.connect(g); g.connect(master);
       o.start(t); o.stop(t + 0.12);
     }
-    function playHat(t) {
+    function playHat(t, vol) {
       if (!noiseBuf) {
         noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 0.05, ctx.sampleRate);
         const d = noiseBuf.getChannelData(0);
@@ -742,7 +742,7 @@
       const s = ctx.createBufferSource(); s.buffer = noiseBuf;
       const f = ctx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 6000;
       const g = ctx.createGain();
-      g.gain.setValueAtTime(0.07, t);
+      g.gain.setValueAtTime(vol || 0.07, t);
       g.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
       s.connect(f); f.connect(g); g.connect(master);
       s.start(t);
@@ -772,6 +772,115 @@
       loopTimer = setTimeout(function () { if (playing) loopStep(); }, (len - 0.3) * 1000);
     }
 
+    /* ============================================================
+     * アレンジ3トラック（bgm_arrange.html・ふゆとさん3曲とも承認済みをそのまま移植）
+     * 参考: C:\Users\pikap\Claude\cowork\mei-panda-hisho\sasatomo-caravan\bgm_arrange.html
+     * ============================================================ */
+
+    /* ---- 🥊 おおもやもや戦（Am・BPM140・8小節ループ）※待機搭載・まだどこからも呼ばない ----
+     * 呼び出し予定地：企画書.md §4-7「おおもやもや戦（エリアボス）」実装時（Phase 2）。
+     * エリアボスの浄化バトル開始時に playBoss() → 終了時に stop()+通常ループ復帰、を想定。 */
+    const BOSS_MELODY = [
+      ['A4', 'C5', 'D5', 'E5', 'D5', 'C5', 'A4', 'G4'],
+      ['A4', 'C5', 'D5', 'C5', 'A4', 'G4', 'E4', 'G4'],
+      ['A4', 'C5', 'D5', 'E5', 'G5', 'E5', 'D5', 'C5'],
+      ['D5', 'C5', 'A4', 'G4', 'A4', null, null, null],
+      ['E5', 'D5', 'C5', 'D5', 'E5', 'G5', 'E5', 'D5'],
+      ['C5', 'D5', 'C5', 'A4', 'G4', 'A4', 'C5', 'D5'],
+      ['E5', 'G5', 'A5', 'G5', 'E5', 'D5', 'C5', 'D5'],
+      ['A4', null, 'E4', 'G4', 'A4', null, null, null],
+    ];
+    const BOSS_ROOTS = ['A2', 'A2', 'F2', 'G2', 'A2', 'A2', 'G2', 'A2'];
+    function scheduleBoss(t0) {
+      const eighth = 60 / 140 / 2;
+      for (let bar = 0; bar < 8; bar++) {
+        const barT = t0 + bar * 8 * eighth;
+        const rootF = freq(BOSS_ROOTS[bar]);
+        for (let i = 0; i < 8; i++) {
+          const t = barT + i * eighth;
+          const n = BOSS_MELODY[bar][i];
+          if (n) {
+            playTone('square', freq(n), t, eighth * 0.9, 0.10);
+            playTone('square', freq(n) / 2, t, eighth * 0.9, 0.045); // 低いハモリ＝迫力
+          }
+          playTone('triangle', i % 2 ? rootF * 2 : rootF, t, eighth * 0.85, 0.20); // 走るベース
+          playHat(t, i % 2 ? 0.06 : 0.03);
+          if (i % 2 === 0) playKick(t, 0.3); // 毎拍の足音
+        }
+      }
+      return 8 * 8 * eighth;
+    }
+
+    /* ---- 🎉 町クリアファンファーレ（C・BPM120・1回だけ・約4秒／ループしない） ---- */
+    function scheduleFanfare(t0) {
+      const eighth = 60 / 120 / 2;
+      const seq = [['C5', 0], ['C5', 1], ['C5', 2], ['E5', 3]]; // タタタ・ター
+      seq.forEach(function (p) { playTone('square', freq(p[0]), t0 + p[1] * eighth, eighth * (p[1] === 3 ? 1.8 : 0.85), 0.12); });
+      playTone('square', freq('D5'), t0 + 5 * eighth, eighth * 0.9, 0.12);
+      playTone('square', freq('E5'), t0 + 6 * eighth, eighth * 1.8, 0.12);
+      // 最後の和音ジャーン（ドミソド）
+      const chordT = t0 + 8 * eighth;
+      ['C4', 'E4', 'G4', 'C5'].forEach(function (n) { playTone('square', freq(n), chordT, 1.4, 0.07); });
+      playTone('triangle', freq('C2'), t0, eighth * 4, 0.25);
+      playTone('triangle', freq('G2'), t0 + 4 * eighth, eighth * 4, 0.22);
+      playTone('triangle', freq('C2'), chordT, 1.4, 0.25);
+      playKick(t0); playKick(t0 + 4 * eighth); playKick(chordT, 0.4);
+      return 8 * eighth + 1.6; // 約4秒・ループしない
+    }
+
+    /* ---- 🌙 よるのキャラバン（C・BPM70・8小節ループ・本編Aパートの旋律）※待機搭載・まだどこからも呼ばない ----
+     * 呼び出し予定地：時間帯設計.md §5 フェーズ1.5「夜BGM自動選曲」実装時。
+     * 端末時刻が夜間帯（21時〜6時）と判定されたら通常ループの代わりに playNight() を鳴らす想定。 */
+    const NIGHT_MELODY = [
+      ['C4', 'D4', 'E4', 'G4', 'A4', 'G4', 'E4', 'D4'],
+      ['E4', 'G4', 'A4', 'C5', 'A4', 'G4', 'E4', 'G4'],
+      ['A4', 'G4', 'E4', 'G4', 'A4', 'C5', 'D5', 'C5'],
+      ['A4', 'G4', 'E4', 'D4', 'C4', null, null, null],
+      ['C4', 'D4', 'E4', 'G4', 'A4', 'G4', 'E4', 'D4'],
+      ['E4', 'G4', 'A4', 'C5', 'A4', 'G4', 'E4', 'G4'],
+      ['D5', 'C5', 'A4', 'C5', 'D5', 'E5', 'D5', 'C5'],
+      ['A4', 'C5', 'A4', 'G4', 'E4', null, null, null],
+    ];
+    const NIGHT_ROOTS = ['C2', 'F2', 'G2', 'C2', 'A2', 'F2', 'G2', 'C2'];
+    function scheduleNight(t0) {
+      const eighth = 60 / 70 / 2;
+      for (let bar = 0; bar < 8; bar++) {
+        const barT = t0 + bar * 8 * eighth;
+        playTone('triangle', freq(NIGHT_ROOTS[bar]), barT, eighth * 7.5, 0.16); // 小節まるごと1音＝しずかな夜
+        for (let i = 0; i < 8; i++) {
+          const n = NIGHT_MELODY[bar][i];
+          if (!n) continue;
+          const t = barT + i * eighth;
+          playTone('sine', freq(n), t, eighth * 1.2, 0.13);        // やわらか音色
+          playTone('sine', freq(n), t + 0.4, eighth * 1.2, 0.035); // やまびこ（エコー）
+        }
+      }
+      return 8 * 8 * eighth;
+    }
+
+    let lastFanfareAt = 0; // 検証用：最後にファンファーレを鳴らした時刻(ms)
+    // 🎉ファンファーレは配線済み：町クリア（advanceTownGauge）から呼ばれる。
+    // BGMがON（isPlaying）でAudioContextが生きているときだけ、メインループを止めずに上から重ねて1回鳴らす。
+    function playFanfare() {
+      if (!playing || !ctx) return; // BGM OFF・AudioContext未生成なら鳴らさない
+      const t0 = ctx.currentTime + 0.05;
+      scheduleFanfare(t0);
+      lastFanfareAt = Date.now();
+    }
+    function getLastFanfareAt() { return lastFanfareAt; }
+
+    // ボス戦・夜モードは「待機搭載」：関数は使えるが、まだ本編のどこからも呼び出していない。
+    function playBoss() {
+      if (!playing || !ctx) return;
+      const t0 = ctx.currentTime + 0.05;
+      return scheduleBoss(t0);
+    }
+    function playNight() {
+      if (!playing || !ctx) return;
+      const t0 = ctx.currentTime + 0.05;
+      return scheduleNight(t0);
+    }
+
     function start() {
       ensureCtx();
       if (ctx.state === 'suspended') ctx.resume();
@@ -789,7 +898,11 @@
     function isPlaying() { return playing; }
     function getCtxState() { return ctx ? ctx.state : 'closed'; } // 検証用（AudioContextの状態を外から見えるように）
 
-    return { start: start, stop: stop, toggle: toggle, isPlaying: isPlaying, getCtxState: getCtxState };
+    return {
+      start: start, stop: stop, toggle: toggle, isPlaying: isPlaying, getCtxState: getCtxState,
+      playFanfare: playFanfare, getLastFanfareAt: getLastFanfareAt,
+      playBoss: playBoss, playNight: playNight, // 待機搭載（Phase 2 / Phase 1.5まで未使用）
+    };
   })();
   window.BgmEngine = BgmEngine; // 動作確認用（Playwright等の外部検証がAudioContextの状態を見られるように）
 
@@ -1260,10 +1373,12 @@
         state.gauge -= TOWNS[state.townIndex].requirement;
         state.townIndex++;
         showToast('🎉 ' + clearedName + ' クリア！つぎの町へ出発だよ');
+        BgmEngine.playFanfare(); // BGM ONのときだけメインループの上に重ねて鳴る（OFF/未生成なら中で何もしない）
       } else {
         if (!state.finalMessageShown) {
           state.finalMessageShown = true;
           showToast('🎉 3つの町をまわりきったよ！ つづきはこれから！（Phase 2をまっててね）');
+          BgmEngine.playFanfare();
         }
         break;
       }
