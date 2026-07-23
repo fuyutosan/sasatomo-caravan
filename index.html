@@ -249,6 +249,19 @@
 
   .towns { list-style: none; font-size: 13px; line-height: 2.1; }
 
+  /* ── セーブのひきつぎ ── */
+  .save-card p { margin-bottom: 10px; }
+  .save-textarea {
+    width: 100%; font-family: inherit; font-size: 11px; line-height: 1.5;
+    padding: 8px; border: 2px solid var(--dark); background: #f8f8f2;
+    resize: vertical; margin-bottom: 8px; word-break: break-all;
+  }
+  .save-msg { font-size: 12px; margin-top: 6px; line-height: 1.6; min-height: 1em; }
+  .save-msg.error { color: #c0392b; }
+  .save-msg.ok { color: var(--green); }
+  .btn.save-danger { background: #b06bff; border-color: #7a3fd0; box-shadow: 0 4px 0 #7a3fd0; margin-top: 6px; }
+  .btn.save-danger:active { box-shadow: 0 1px 0 #7a3fd0; }
+
   .zgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
   .zcell { border: 2px solid var(--dark); background: #f2f7ef; text-align: center; padding: 6px 2px; font-size: 10px; }
   .zcell img { width: 30px; image-rendering: pixelated; }
@@ -402,6 +415,25 @@
       <section class="card">
         <h2>🗾 旅の地図</h2>
         <ul class="towns" id="townList"></ul>
+      </section>
+
+      <section class="card save-card">
+        <h2>💾 セーブのひきつぎ</h2>
+        <p>ブラウザのキャッシュを消すと、セーブが消えちゃうことがあるよ。ひきつぎコードをコピーして、メモアプリなどに保存しておいてね。別のスマホやパソコンへのお引っ越しにも使えるよ。</p>
+
+        <button class="btn" id="exportShowBtn">📤 ひきつぎコードを出す</button>
+        <div id="exportBox" style="display:none;">
+          <textarea class="save-textarea" id="exportTextarea" readonly rows="4"></textarea>
+          <button class="btn" id="exportCopyBtn">📋 コピーする</button>
+          <p class="save-msg" id="exportMsg"></p>
+        </div>
+
+        <button class="btn" id="importShowBtn" style="margin-top:14px;">📥 ひきつぎコードをよみこむ</button>
+        <div id="importBox" style="display:none;">
+          <textarea class="save-textarea" id="importTextarea" rows="4" placeholder="ここにひきつぎコードをはりつけてね"></textarea>
+          <button class="btn save-danger" id="importRunBtn">ひきつぎ実行</button>
+          <p class="save-msg" id="importMsg"></p>
+        </div>
       </section>
     </div>
 
@@ -627,6 +659,87 @@
   }
   function saveState() {
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch (e) { /* 保存できなくても続行 */ }
+  }
+
+  /* ============================================================
+   * セーブのひきつぎ（引き継ぎコード方式）
+   * ============================================================ */
+  const SAVE_CODE_PREFIX = 'SASATOMO1.';
+
+  function encodeSaveCode(data) {
+    const json = JSON.stringify(data);
+    const b64 = btoa(unescape(encodeURIComponent(json))); // UTF-8安全なbase64化
+    return SAVE_CODE_PREFIX + b64;
+  }
+
+  function decodeSaveCode(code) {
+    const trimmed = (code || '').trim();
+    if (trimmed.indexOf(SAVE_CODE_PREFIX) !== 0) throw new Error('prefix-mismatch');
+    const b64 = trimmed.slice(SAVE_CODE_PREFIX.length);
+    let json;
+    try {
+      json = decodeURIComponent(escape(atob(b64)));
+    } catch (e) { throw new Error('decode-failed'); }
+    const data = JSON.parse(json); // 失敗時はSyntaxErrorがそのまま投げられる
+    if (!data || typeof data !== 'object') throw new Error('shape-invalid');
+    // 最低限のキー存在チェック（笹・なかま所持）
+    if (typeof data.sasa !== 'number') throw new Error('missing-sasa');
+    if (!data.owned || typeof data.owned !== 'object') throw new Error('missing-owned');
+    return data;
+  }
+
+  function showExportCode() {
+    el.exportTextarea.value = encodeSaveCode(state);
+    el.exportBox.style.display = '';
+    el.exportMsg.textContent = '';
+    el.exportMsg.className = 'save-msg';
+  }
+
+  function copyExportCode() {
+    const text = el.exportTextarea.value;
+    function fallbackSelectCopy() {
+      el.exportTextarea.focus();
+      el.exportTextarea.select();
+      try {
+        document.execCommand('copy');
+        el.exportMsg.textContent = 'コピーしたよ！メモアプリに貼りつけて保存してね。';
+        el.exportMsg.className = 'save-msg ok';
+      } catch (e) {
+        el.exportMsg.textContent = 'コピーできなかったよ…上のらんを手でえらんでコピーしてね。';
+        el.exportMsg.className = 'save-msg error';
+      }
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () {
+        el.exportMsg.textContent = 'コピーしたよ！メモアプリに貼りつけて保存してね。';
+        el.exportMsg.className = 'save-msg ok';
+      }).catch(fallbackSelectCopy);
+    } else {
+      fallbackSelectCopy();
+    }
+  }
+
+  function runImportSaveCode() {
+    let data;
+    try {
+      data = decodeSaveCode(el.importTextarea.value);
+    } catch (e) {
+      el.importMsg.textContent = 'コードがよめなかったよ…コピーミスがないか見てみてね。';
+      el.importMsg.className = 'save-msg error';
+      return;
+    }
+    const ok = window.confirm('いまのデータが上書きされるよ。いい？');
+    if (!ok) return;
+    try {
+      localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+    } catch (e) {
+      el.importMsg.textContent = 'ほぞんに しっぱいしちゃった…もういちど ためしてみてね。';
+      el.importMsg.className = 'save-msg error';
+      return;
+    }
+    el.importMsg.textContent = 'ひきつぎ かんりょう！ ページを よみこみなおすよ…';
+    el.importMsg.className = 'save-msg ok';
+    location.reload();
   }
 
   /* ============================================================
@@ -865,7 +978,9 @@
      'formationText', 'equipSlots', 'invCount', 'invList', 'gachaPullBtn', 'ticketText', 'townList',
      'zukanTitle', 'zukanGrid', 'modalOverlay', 'modalTitle', 'modalList', 'modalCloseBtn',
      'gachaOverlay', 'gachaGrass', 'gachaSkipBtn', 'gachaResult', 'gachaResultRank', 'gachaResultName',
-     'gachaResultTalents', 'gachaResultFlavor', 'gachaResultNote', 'gachaCloseBtn'
+     'gachaResultTalents', 'gachaResultFlavor', 'gachaResultNote', 'gachaCloseBtn',
+     'exportShowBtn', 'exportBox', 'exportTextarea', 'exportCopyBtn', 'exportMsg',
+     'importShowBtn', 'importBox', 'importTextarea', 'importRunBtn', 'importMsg'
     ].forEach(function (id) { el[id] = q(id); });
   }
 
@@ -1282,6 +1397,15 @@
     el.gachaPullBtn.addEventListener('click', pullGacha);
     el.gachaCloseBtn.addEventListener('click', function () { el.gachaOverlay.style.display = 'none'; });
     el.gachaOverlay.addEventListener('click', function (ev) { if (ev.target === el.gachaOverlay) el.gachaOverlay.style.display = 'none'; });
+
+    el.exportShowBtn.addEventListener('click', showExportCode);
+    el.exportCopyBtn.addEventListener('click', copyExportCode);
+    el.importShowBtn.addEventListener('click', function () {
+      el.importBox.style.display = '';
+      el.importMsg.textContent = '';
+      el.importMsg.className = 'save-msg';
+    });
+    el.importRunBtn.addEventListener('click', runImportSaveCode);
   }
 
   /* ============================================================
