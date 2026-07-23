@@ -4,6 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>笹友キャラバン</title>
+<meta name="description" content="パンダさんたちが世界に元気を配る、ドット×放置×ハクスラゲーム">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#079C15">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="笹友キャラバン">
+<meta property="og:title" content="笹友キャラバン">
+<meta property="og:description" content="パンダさんたちが世界に元気を配る、ドット×放置ゲーム。るすばん中もキャラバンは旅を続けるよ🎋">
+<meta property="og:image" content="https://fuyutosan.github.io/sasatomo-caravan/ogp.png">
+<meta property="og:url" content="https://fuyutosan.github.io/sasatomo-caravan/">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
 <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -1933,6 +1947,14 @@
 
   window.addEventListener('DOMContentLoaded', function () { init(); });
 })();
+</script>
+<script>
+  // PWA: サービスワーカー登録（https配信時のみ。file://での開発時は何もしない）
+  if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('./sw.js').catch(function () {});
+    });
+  }
 </script>
 </body>
 </html>
