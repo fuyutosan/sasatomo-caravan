@@ -1,6 +1,6 @@
 // 笹友キャラバン — オフライン対応サービスワーカー（充電器v2方式）
 // index.html はネットワーク優先（更新が即届く）、失敗時だけキャッシュ
-const CACHE = 'sasatomo-caravan-v1';
+const CACHE = 'sasatomo-caravan-v2'; // v2: アイコンをリッチ版に更新
 const ASSETS = [
   './',
   './index.html',
