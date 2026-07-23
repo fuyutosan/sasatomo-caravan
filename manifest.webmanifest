@@ -1,0 +1,17 @@
+{
+  "name": "笹友キャラバン",
+  "short_name": "笹友キャラバン",
+  "description": "パンダさんたちが世界に元気を配る、ドット×放置×ハクスラゲーム。るすばん中もキャラバンは旅を続けるよ🎋",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fff8ea",
+  "theme_color": "#079C15",
+  "lang": "ja",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
