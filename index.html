@@ -150,7 +150,8 @@
   @keyframes bob { 50% { transform: translateY(-5px); } }
 
   .moyamoya {
-    position: absolute; bottom: 78px; right: 26px; font-size: 44px;
+    /* 頭上の空エリアに配置（パンダさんは bottom:40px・高さ約74pxなので、bottom:150pxなら4人編成でも重ならない） */
+    position: absolute; bottom: 150px; right: 18px; font-size: 44px;
     animation: wobble 1.6s ease-in-out infinite;
     filter: grayscale(.4);
     z-index: 2;
@@ -162,7 +163,8 @@
   @keyframes wobble { 50% { transform: translateY(-8px) rotate(-6deg); } }
 
   .pop {
-    position: absolute; bottom: 118px; right: 60px;
+    /* シーン左側の空いている空エリア（キャラバンの頭上左）に配置：右側はもやもや雲の場所として分離する */
+    position: absolute; bottom: 150px; left: 16px;
     font-size: 13px; color: #d9ffa0; font-weight: bold;
     text-shadow: 1px 1px 0 #2a3a1a;
     z-index: 5;
@@ -198,6 +200,8 @@
   }
   .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #045c0c; }
   .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn.share { background: #1c1c1c; border-color: #000; box-shadow: 0 4px 0 #000; text-decoration: none; text-align: center; box-sizing: border-box; }
+  .btn.share:active { box-shadow: 0 1px 0 #000; }
 
   .party .slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
   .party .slot {
@@ -219,6 +223,8 @@
   .party .btn.gacha:active { box-shadow: 0 1px 0 #7a3fd0; }
   .party .ticket { font-size: 11px; color: #7a3fd0; margin-top: 6px; text-align: center; }
 
+  .btn.auto-equip, .btn.auto-formation { background: #ffb400; border-color: #a67c00; box-shadow: 0 4px 0 #a67c00; margin-bottom: 8px; }
+  .btn.auto-equip:active, .btn.auto-formation:active { box-shadow: 0 1px 0 #a67c00; }
   .equip .slots3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 6px; }
   .equip .eslot {
     border: 2px solid var(--dark); background: #f2f7ef; padding: 8px 2px;
@@ -237,6 +243,9 @@
   .inv-item .imeta { flex: 1; line-height: 1.5; }
   .inv-item .irank { font-size: 9px; }
   .inv-empty { padding: 10px; font-size: 11px; color: #8a8a80; text-align: center; }
+  .inv-diff { font-size: 10px; font-weight: bold; }
+  .inv-diff.up { color: var(--green); }
+  .inv-diff.down, .inv-diff.same { color: #999; font-weight: normal; }
 
   .badge-new {
     display: inline-block; background: #ff5a5a; color: #fff; font-size: 9px;
@@ -268,7 +277,20 @@
   .gachabox .btn.gacha { margin-top: 10px; }
   .rates { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 10px; }
   .rc { font-size: 10px; padding: 2px 6px; border: 2px solid var(--dark); background: #fff; }
-  .rc.n { color: #667; } .rc.r { color: #1c6fd6; } .rc.sr { color: #8a3fd0; }
+  .rc.n { color: #0a7a1e; } .rc.r { color: #1c6fd6; }
+  .rc.sr { color: #3a3a44; border-color: #6b7280; background: linear-gradient(135deg, #e8e8f0, #9aa0b0, #f4f4f8); }
+  .rc.ssr { color: #a67c00; background: #fff6df; }
+  .rc.ur {
+    color: #fff; border-color: #7a3fd0;
+    background: linear-gradient(90deg, #ff5252, #ffb400, #ffe066, #4aa3ff, #b06bff, #ff5252);
+    text-shadow: 1px 1px 0 rgba(0, 0, 0, .35);
+  }
+
+  /* ── おむかえポイント（天井交換） ── */
+  .pity { font-size: 11px; color: #4a3a66; margin-top: 10px; background: #f6f0ff; border: 2px solid var(--rare-totteoki); padding: 8px; }
+  .pity .btn { margin-top: 6px; font-size: 12px; padding: 8px; }
+  .pity .btn.pity-ur { background: linear-gradient(90deg, #ff5252, #ffb400, #ffe066, #4aa3ff, #b06bff); border-color: #7a3fd0; box-shadow: 0 4px 0 #7a3fd0; }
+  .pity .btn.pity-ur:active { box-shadow: 0 1px 0 #7a3fd0; }
 
   .towns { list-style: none; font-size: 13px; line-height: 2.1; }
 
@@ -293,12 +315,33 @@
   #cloudCard h2 { color: #1c6fd6; }
 
   .zgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-  .zcell { border: 2px solid var(--dark); background: #f2f7ef; text-align: center; padding: 6px 2px; font-size: 10px; }
+  .zcell { border: 2px solid var(--dark); background: #f2f7ef; text-align: center; padding: 6px 2px; font-size: 10px; cursor: pointer; }
   .zcell img { width: 30px; image-rendering: pixelated; }
   .zcell .zstar { color: #d99a00; font-size: 9px; display: block; }
   .zcell.unk img { filter: brightness(0); opacity: .45; }
-  .zcell.unk { color: #999; }
+  .zcell.unk { color: #999; cursor: default; }
   .zsmall { font-size: 11px; color: #666; margin-top: 8px; }
+
+  /* ── ずかんのレア度バッジ・色枠（キャラのN〜URはガチャ設計の色に統一） ── */
+  .zbadge { display: block; width: fit-content; margin: 0 auto 2px; font-size: 8px; padding: 0 4px; border-radius: 3px; color: #fff; line-height: 1.4; }
+  .zbadge.b-n { background: #35c04a; }
+  .zbadge.b-r { background: #4aa3ff; }
+  .zbadge.b-sr { background: linear-gradient(135deg, #e8e8f0, #9aa0b0, #f4f4f8); color: #3a3a44; }
+  .zbadge.b-ssr { background: #ffb400; color: #4a3300; }
+  .zbadge.b-ur { background: linear-gradient(90deg, #ff5252, #ffb400, #ffe066, #4aa3ff, #b06bff); }
+  .zcell.r-n { border-color: #35c04a; }
+  .zcell.r-r { border-color: #4aa3ff; }
+  .zcell.r-sr {
+    border: 3px solid transparent;
+    background: linear-gradient(#f2f7ef, #f2f7ef) padding-box,
+      linear-gradient(135deg, #e8e8f0, #9aa0b0, #f4f4f8) border-box;
+  }
+  .zcell.r-ssr { border-color: #ffb400; box-shadow: 0 0 4px rgba(255, 180, 0, .5); }
+  .zcell.r-ur {
+    border: 3px solid transparent;
+    background: linear-gradient(#f2f7ef, #f2f7ef) padding-box,
+      linear-gradient(90deg, #ff5252, #ffb400, #ffe066, #4aa3ff, #b06bff, #ff5252) border-box;
+  }
 
   nav {
     display: flex; border-top: 4px solid var(--dark); background: #fff;
@@ -341,12 +384,44 @@
   .grass.shaking { animation: grassShake .15s ease-in-out infinite, glowPulse 1.2s ease-in-out infinite; }
   @keyframes grassShake { 0%,100% { transform: rotate(0deg); } 25% { transform: rotate(-4deg); } 75% { transform: rotate(4deg); } }
   @keyframes glowPulse { 50% { box-shadow: 0 0 22px 6px var(--glow-color, #9aa4a8); } }
+  /* URだけは単色でなく虹色がぐるぐる回る特別な光り方にする */
+  .grass.ur-rainbow { animation: grassShake .15s ease-in-out infinite, urGlow 1.4s linear infinite; }
+  @keyframes urGlow {
+    0% { box-shadow: 0 0 22px 6px #ff5252; }
+    20% { box-shadow: 0 0 22px 6px #ffb400; }
+    40% { box-shadow: 0 0 22px 6px #ffe066; }
+    60% { box-shadow: 0 0 22px 6px #4aa3ff; }
+    80% { box-shadow: 0 0 22px 6px #b06bff; }
+    100% { box-shadow: 0 0 22px 6px #ff5252; }
+  }
+  /* SRはシルバーの金属光沢がゆらめく特別な光り方にする */
+  .grass.sr-metal { animation: grassShake .15s ease-in-out infinite, srGlow 1.2s ease-in-out infinite; }
+  @keyframes srGlow {
+    0%, 100% { box-shadow: 0 0 22px 6px #e8e8f0; }
+    50% { box-shadow: 0 0 22px 6px #9aa0b0; }
+  }
   #gachaSkipBtn { margin-top: 12px; background: #888; border-color: #555; box-shadow: 0 4px 0 #555; }
   .gresult-rank { font-size: 13px; font-weight: bold; margin-top: 6px; }
   .gresult-name { font-size: 20px; margin-top: 2px; }
   .gresult-talents { font-size: 11px; color: #4a6b4f; margin-top: 4px; }
   .gresult-flavor { font-size: 12px; margin-top: 8px; line-height: 1.6; }
   .gresult-note { font-size: 11px; color: #7a3fd0; margin-top: 8px; }
+  .gresult-skill { font-size: 12px; color: #a67c00; margin-top: 6px; line-height: 1.6; }
+
+  /* ── ずかん詳細モーダル・画像拡大 ── */
+  .char-detail { text-align: center; }
+  .char-detail-img { width: 100px; height: 100px; object-fit: contain; image-rendering: pixelated; cursor: zoom-in; }
+  .char-detail-name { font-size: 17px; margin-top: 8px; }
+  .char-detail-talents { font-size: 12px; color: #4a6b4f; margin-top: 6px; }
+  .char-detail-skill { font-size: 12px; color: #a67c00; background: #fff6df; border: 2px solid #ffb400; padding: 6px; margin-top: 8px; text-align: left; line-height: 1.6; }
+  .char-detail-power { font-size: 13px; margin-top: 8px; }
+  .char-detail-power b { color: var(--green); }
+  .char-detail-flavor { font-size: 12px; margin-top: 8px; line-height: 1.7; text-align: left; color: #4a4a42; }
+  .char-zoom-overlay {
+    position: fixed; inset: 0; background: rgba(6, 4, 8, .92); z-index: 250;
+    display: flex; align-items: center; justify-content: center; cursor: zoom-out; padding: 20px;
+  }
+  .char-zoom-overlay img { max-width: 90%; max-height: 90%; image-rendering: pixelated; }
 </style>
 </head>
 <body>
@@ -411,12 +486,18 @@
         <h2>🐼 きょうも旅のとちゅう</h2>
         <p>もやもや雲を見つけたら、キャラバンが自動で笑顔にしてくれるよ。見てるだけでOK！</p>
       </section>
+
+      <section class="card share-card">
+        <h2>📣 旅のようすをシェア</h2>
+        <a class="btn share" id="xShareBtn" target="_blank" rel="noopener noreferrer">🐦 Xでシェアする</a>
+      </section>
     </div>
 
     <!-- 🐼 編成タブ -->
     <div class="tab" id="tab-hensei">
       <section class="card party">
         <h2>🐼 キャラバン編成（さいだい4人）</h2>
+        <button class="btn auto-formation" id="autoFormationBtn">✨ おまかせ編成</button>
         <div class="slots" id="partySlots"></div>
         <p class="total">キャラバン総合力 <b id="totalPowerText">0</b><br>→ るすばん中に稼げるパンダさんパワーが変わるよ</p>
         <p class="formation" id="formationText"></p>
@@ -424,6 +505,7 @@
 
       <section class="card equip">
         <h2>🎒 キャラバンの旅道具</h2>
+        <button class="btn auto-equip" id="autoEquipBtn">✨ おまかせ装備</button>
         <div class="slots3" id="equipSlots"></div>
         <div class="inv-head"><span>もちもの</span><span id="invCount">0/30</span></div>
         <div class="inv-list" id="invList"></div>
@@ -438,7 +520,12 @@
         <button class="btn gacha" id="gachaPullBtn">🎋 笹をおく（笹 3,000）</button>
         <p class="ticket" id="ticketText">✉️ おさそいの手紙 ×1（1回ぶん無料！）</p>
         <div class="rates">
-          <span class="rc n">N 60%</span><span class="rc r">R 30%</span><span class="rc sr">SR 10%</span>
+          <span class="rc n">N 55%</span><span class="rc r">R 30%</span><span class="rc sr">SR 11%</span><span class="rc ssr">SSR 3.5%</span><span class="rc ur">UR 0.5%</span>
+        </div>
+        <div class="pity">
+          <p id="pityText">おむかえpt 0（50ptで好きなSSR、100ptで好きなURと交換できるよ）</p>
+          <button class="btn" id="pity50Btn">🎖️ 50ptで好きなSSRと交換</button>
+          <button class="btn pity-ur" id="pity100Btn">🌈 100ptで好きなURと交換</button>
         </div>
       </section>
     </div>
@@ -525,11 +612,25 @@
       <div class="gresult-rank" id="gachaResultRank"></div>
       <div class="gresult-name" id="gachaResultName"></div>
       <div class="gresult-talents" id="gachaResultTalents"></div>
+      <p class="gresult-skill" id="gachaResultSkill" style="display:none;"></p>
       <p class="gresult-flavor" id="gachaResultFlavor"></p>
       <p class="gresult-note" id="gachaResultNote" style="display:none;"></p>
       <button class="btn gacha" id="gachaCloseBtn" style="margin-top:12px;">とじる</button>
     </div>
   </div>
+</div>
+
+<!-- ずかん詳細モーダル -->
+<div class="modal-overlay" id="charOverlay" style="display:none;">
+  <div class="modal-box char-detail">
+    <div id="charDetailBody"></div>
+    <button class="btn modal-close" id="charCloseBtn">とじる</button>
+  </div>
+</div>
+
+<!-- キャラ画像フルスクリーン拡大 -->
+<div class="char-zoom-overlay" id="charZoomOverlay" style="display:none;">
+  <img id="charZoomImg" src="" alt="">
 </div>
 
 <script>
@@ -554,23 +655,26 @@
     friendTownIncomePerTown: 30,
     gachaBaseCost: 3000,
     gachaCostGrowth: 1.15,
-    rosterRates: { N: 0.60, R: 0.30, SR: 0.10 },
-    baseStatByRarity: { N: 100, R: 160, SR: 260 },
+    rosterRates: { N: 0.55, R: 0.30, SR: 0.11, SSR: 0.035, UR: 0.005 },
+    baseStatByRarity: { N: 100, R: 160, SR: 260, SSR: 420, UR: 700 },
     awakenBonusPerLevel: 0.10,
     awakenMax: 5,
-    dupConvertSasa: { N: 500, R: 1000, SR: 1500 },
+    dupConvertSasa: { N: 500, R: 1000, SR: 1500, SSR: 2500, UR: 6000 },
     talentBonusPerMember: 0.15,
     outenPowerBonusPerMember: 0.08,
     formationBalanceBonus: 0.15,
     formationSpecialty2Bonus: 0.25,
     formationSpecialty3Bonus: 0.40,
     equipRarityRates: { futsu: 0.55, suteki: 0.30, totteoki: 0.12, densetsu: 0.03 },
+    // はなまる「はなまるチェック」在籍時：とっておき以上の合計を+20pt、ふつう/すてきから按分でひく
+    hanamaruEquipRates: { futsu: 0.4206, suteki: 0.2294, totteoki: 0.28, densetsu: 0.07 },
     equipEffectCountByRarity: { futsu: 1, suteki: 1, totteoki: 2, densetsu: 3 },
     equipValueRangeByRarity: { futsu: [3, 8], suteki: [5, 12], totteoki: [8, 18], densetsu: [12, 25] },
     inventoryMax: 30,
     offlineCapMs: 12 * 3600 * 1000,
     offlineMinMs: 60 * 1000,
     saveIntervalMs: 1000,
+    pityCost: { SSR: 50, UR: 100 }, // おむかえポイントの交換コスト
   };
 
   const SAVE_KEY = 'sasatomo-caravan-v1';
@@ -925,24 +1029,54 @@
    * ============================================================ */
   const TALENTS = ['元気くばり上手', '笹ひろい上手', 'あしがはやい', 'みつけ上手', 'おうえん上手'];
 
-  const TAICHO = { id: 'taicho', name: 'たいちょう', rarity: 'R', talents: ['元気くばり上手'],
+  // なかまパンダさんの見た目：現状は全員おなじ画像だが、将来Geminiで個別画像ができたら
+  // ここ(各キャラのimageフィールド)を差し替えるだけでずかん・詳細・拡大表示すべてに反映される。
+  const CHAR_IMG_DEFAULT = 'assets/meimei_dot.png';
+
+  const TAICHO = { id: 'taicho', name: 'たいちょう', rarity: 'R', talents: ['元気くばり上手'], image: CHAR_IMG_DEFAULT,
     flavor: 'キャラバンをまとめる、たよれる隊長さん。今日もみんなを見守っている。', starter: true };
 
   const GACHA_POOL = [
-    { id: 'chacha', name: 'ちゃちゃ', rarity: 'SR', talents: ['元気くばり上手', 'おうえん上手'], flavor: '世話焼きのお姉さん気質。列の後ろまで声をかける。' },
-    { id: 'tekuteku', name: 'てくてく', rarity: 'SR', talents: ['あしがはやい', '笹ひろい上手'], flavor: '歩数を数えるのが趣味。今日も1万歩。' },
-    { id: 'kirari', name: 'きらり', rarity: 'SR', talents: ['みつけ上手', '元気くばり上手'], flavor: '目がいい。地平線の向こうの町を最初に見つける係。' },
-    { id: 'korokoro', name: 'ころころ', rarity: 'R', talents: ['笹ひろい上手'], flavor: '坂道が得意。転がるだけで仕事になる。' },
-    { id: 'mochimochi', name: 'もちもち', rarity: 'R', talents: ['笹ひろい上手'], flavor: 'ほっぺが名物。さわると元気が出ると評判。' },
-    { id: 'runrun', name: 'るんるん', rarity: 'R', talents: ['おうえん上手'], flavor: '機嫌がいい。理由はとくにない。' },
-    { id: 'hokuhoku', name: 'ほくほく', rarity: 'R', talents: ['みつけ上手'], flavor: '掘りものが得意。たけのこ発見率No.1。' },
-    { id: 'moonwalk', name: 'ムーンウォーク', rarity: 'R', talents: ['あしがはやい'], flavor: 'うしろ向きに歩いてるのに、なぜかちゃんと前に進む。本人にも理由はわからない。' },
-    { id: 'sasanoha', name: 'ささのは', rarity: 'N', talents: ['笹ひろい上手'], flavor: '笹のことなら任せて、が口ぐせの新人。' },
-    { id: 'takenoko', name: 'たけのこ', rarity: 'N', talents: ['笹ひろい上手'], flavor: '掘りたてみたいに元気。伸びしろしかない。' },
-    { id: 'kotsubu', name: 'こつぶ', rarity: 'N', talents: ['みつけ上手'], flavor: '小さいから低いところの落としものに強い。' },
-    { id: 'mameta', name: 'まめた', rarity: 'N', talents: ['あしがはやい'], flavor: 'まめに走る。まめに休む。' },
-    { id: 'ohayou', name: 'おはよう', rarity: 'N', talents: ['元気くばり上手'], flavor: '挨拶が名前になった子。夕方でも「おはよう」。' },
-    { id: 'mogumogu', name: 'もぐもぐ', rarity: 'N', talents: ['笹ひろい上手'], flavor: 'もぐもぐ食べてるだけなのに、なぜか笹がたくさん集まってくる。' },
+    { id: 'chacha', name: 'ちゃちゃ', rarity: 'SR', talents: ['元気くばり上手', 'おうえん上手'], image: CHAR_IMG_DEFAULT, flavor: '世話焼きのお姉さん気質。列の後ろまで声をかける。' },
+    { id: 'tekuteku', name: 'てくてく', rarity: 'SR', talents: ['あしがはやい', '笹ひろい上手'], image: CHAR_IMG_DEFAULT, flavor: '歩数を数えるのが趣味。今日も1万歩。' },
+    { id: 'kirari', name: 'きらり', rarity: 'SR', talents: ['みつけ上手', '元気くばり上手'], image: CHAR_IMG_DEFAULT, flavor: '目がいい。地平線の向こうの町を最初に見つける係。' },
+    { id: 'korokoro', name: 'ころころ', rarity: 'R', talents: ['笹ひろい上手'], image: CHAR_IMG_DEFAULT, flavor: '坂道が得意。転がるだけで仕事になる。' },
+    { id: 'mochimochi', name: 'もちもち', rarity: 'R', talents: ['笹ひろい上手'], image: CHAR_IMG_DEFAULT, flavor: 'ほっぺが名物。さわると元気が出ると評判。' },
+    { id: 'runrun', name: 'るんるん', rarity: 'R', talents: ['おうえん上手'], image: CHAR_IMG_DEFAULT, flavor: '機嫌がいい。理由はとくにない。' },
+    { id: 'hokuhoku', name: 'ほくほく', rarity: 'R', talents: ['みつけ上手'], image: CHAR_IMG_DEFAULT, flavor: '掘りものが得意。たけのこ発見率No.1。' },
+    { id: 'moonwalk', name: 'ムーンウォーク', rarity: 'R', talents: ['あしがはやい'], image: CHAR_IMG_DEFAULT, flavor: 'うしろ向きに歩いてるのに、なぜかちゃんと前に進む。本人にも理由はわからない。' },
+    { id: 'sasanoha', name: 'ささのは', rarity: 'N', talents: ['笹ひろい上手'], image: CHAR_IMG_DEFAULT, flavor: '笹のことなら任せて、が口ぐせの新人。' },
+    { id: 'takenoko', name: 'たけのこ', rarity: 'N', talents: ['笹ひろい上手'], image: CHAR_IMG_DEFAULT, flavor: '掘りたてみたいに元気。伸びしろしかない。' },
+    { id: 'kotsubu', name: 'こつぶ', rarity: 'N', talents: ['みつけ上手'], image: CHAR_IMG_DEFAULT, flavor: '小さいから低いところの落としものに強い。' },
+    { id: 'mameta', name: 'まめた', rarity: 'N', talents: ['あしがはやい'], image: CHAR_IMG_DEFAULT, flavor: 'まめに走る。まめに休む。' },
+    { id: 'ohayou', name: 'おはよう', rarity: 'N', talents: ['元気くばり上手'], image: CHAR_IMG_DEFAULT, flavor: '挨拶が名前になった子。夕方でも「おはよう」。' },
+    { id: 'mogumogu', name: 'もぐもぐ', rarity: 'N', talents: ['笹ひろい上手'], image: CHAR_IMG_DEFAULT, flavor: 'もぐもぐ食べてるだけなのに、なぜか笹がたくさん集まってくる。' },
+    // ── SSR（5人・得意2つ＋固有スキル） ──
+    { id: 'gorogoro', name: 'ごろごろ', rarity: 'SSR', talents: ['笹ひろい上手', 'おうえん上手'], image: CHAR_IMG_DEFAULT,
+      skill: { name: 'ごろごろ収穫祭', desc: '笹収入+30%' },
+      flavor: '転がって移動する省エネの達人。転がった跡に笹が集まる不思議。' },
+    { id: 'pikapika', name: 'ぴかぴか', rarity: 'SSR', talents: ['元気くばり上手', 'みつけ上手'], image: CHAR_IMG_DEFAULT,
+      skill: { name: 'キラキラスマイル', desc: '浄化力+25%' },
+      flavor: '笑顔がまぶしすぎて夜道で光る。本人は無自覚。' },
+    { id: 'onpu', name: 'おんぷ', rarity: 'SSR', talents: ['おうえん上手', '元気くばり上手'], image: CHAR_IMG_DEFAULT,
+      skill: { name: 'おうえんマーチ', desc: 'メンバー全員の総合力+8%' },
+      flavor: '歩くとき鼻歌がとまらない。キャラバンの音楽隊長。' },
+    { id: 'hanamaru', name: 'はなまる', rarity: 'SSR', talents: ['みつけ上手', '笹ひろい上手'], image: CHAR_IMG_DEFAULT,
+      skill: { name: 'はなまるチェック', desc: 'とっておき以上のドロップ率+20%' },
+      flavor: 'なんでも採点したがる。いい道具を見つけると「はなまる！」と叫ぶ。' },
+    { id: 'mikazuki', name: 'みかづき', rarity: 'SSR', talents: ['あしがはやい', 'みつけ上手'], image: CHAR_IMG_DEFAULT,
+      skill: { name: 'よみちをてくてく', desc: '夜（21時〜6時）の旅の速度+30%' },
+      flavor: '夜ふかしの常習犯。月を見上げて歩くのでよく転ぶ。' },
+    // ── UR（3人・得意3つ＋強力スキル） ──
+    { id: 'nagareboshi', name: 'ながれぼし', rarity: 'UR', talents: ['みつけ上手', 'あしがはやい', 'おうえん上手'], image: CHAR_IMG_DEFAULT,
+      skill: { name: 'ねがいごとシャワー', desc: 'るすばん報告の道具が必ず1つ増える' },
+      flavor: '流れ星の夜にだけ現れると噂の旅びと。願いごとを叶えるのが生きがい。' },
+    { id: 'otsukisama', name: 'おつきさま', rarity: 'UR', talents: ['おうえん上手', '元気くばり上手', '笹ひろい上手'], image: CHAR_IMG_DEFAULT,
+      skill: { name: 'おやすみのうた', desc: 'るすばん時間を1.5倍で計算' },
+      flavor: 'みんなが眠っている間も旅を見守る、まんまるやさしい大きな子。' },
+    { id: 'hatsuhinode', name: 'はつひので', rarity: 'UR', talents: ['元気くばり上手', 'あしがはやい', 'みつけ上手'], image: CHAR_IMG_DEFAULT,
+      skill: { name: 'あさひのごあいさつ', desc: '5時〜10時のあいだ浄化パワー2倍' },
+      flavor: '朝いちばんの光といっしょに走ってくる。会えた日はいいことがある。' },
   ];
 
   const ALL_CHARS = [TAICHO].concat(GACHA_POOL);
@@ -953,7 +1087,8 @@
   const RARITY_STAR = { futsu: '★', suteki: '★★', totteoki: '★★★', densetsu: '★★★★' };
   const RARITY_VAR = { futsu: '--rare-futsu', suteki: '--rare-suteki', totteoki: '--rare-totteoki', densetsu: '--rare-densetsu' };
   const RARITY_COLOR = { futsu: '#9aa4a8', suteki: '#4aa3ff', totteoki: '#b06bff', densetsu: '#ffb400' };
-  const CHAR_RARITY_COLOR = { N: '#9aa4a8', R: '#4aa3ff', SR: '#b06bff' };
+  // なかまパンダさんのレア色（装備のレア色 RARITY_COLOR とは別物・共用しない）：N=みどり／R=あお／SR=シルバー（金属光沢は専用CSSクラスで表現・ここは単色が必要な文字色用の代表色）／SSR=ゴールド／UR=レインボー
+  const CHAR_RARITY_COLOR = { N: '#35c04a', R: '#4aa3ff', SR: '#6b7280', SSR: '#ffb400', UR: '#ff5fa2' };
 
   const EQUIP_TYPES = [
     { id: 'sasakasa', name: '笹の笠', icon: '🎍', slot: 'kaburimono' },
@@ -971,6 +1106,11 @@
     { name: 'すたーと村', requirement: 20, specialty: '笹だんご' },
     { name: 'ひだまり村', requirement: 50, specialty: 'はちみつ' },
     { name: 'あめふり町', requirement: 100, specialty: 'てるてる飴' },
+    { name: 'ねむりが丘', requirement: 150, specialty: 'まくら草' },
+    { name: 'からっぽ市場', requirement: 250, specialty: 'からっぽ最中' },
+    { name: 'しとしと沼', requirement: 400, specialty: 'あめやどり傘' },
+    { name: 'かぜのとうげ', requirement: 600, specialty: '風ぐるま' },
+    { name: 'ほしふる高原', requirement: 900, specialty: '星のかけらキャンディ' },
   ];
 
   const DIARY_LINES = [
@@ -1016,6 +1156,11 @@
   }
   function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
   function uid() { return 'it' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+  // 端末時刻の時間帯判定（簡易版：startH<=endHなら日中区間、startH>endHなら日またぎ区間として扱う）
+  function timeInRange(hour, startH, endH) {
+    if (startH <= endH) return hour >= startH && hour < endH;
+    return hour >= startH || hour < endH;
+  }
 
   /* ============================================================
    * セーブデータ
@@ -1038,6 +1183,7 @@
       gachaDay: new Date(now).toDateString(),
       lastSeen: now,
       totalCloudsCleared: 0,
+      omukaePt: 0,
     };
   }
   let state = null;
@@ -1302,11 +1448,24 @@
       });
     });
 
+    // ── SSR/UR 固有スキル（編成に入っているときだけ発動・端末時刻で簡易判定） ──
+    function inParty(id) { return state.party.indexOf(id) !== -1; }
+    const hour = new Date().getHours();
+    if (inParty('gorogoro')) sasaMult += 0.30;                                 // ごろごろ「ごろごろ収穫祭」笹収入+30%
+    if (inParty('pikapika')) purifyMult += 0.25;                              // ぴかぴか「キラキラスマイル」浄化力+25%
+    if (inParty('onpu')) totalPower *= 1.08;                                  // おんぷ「おうえんマーチ」総合力+8%
+    if (inParty('mikazuki') && timeInRange(hour, 21, 6)) speedMult += 0.30;   // みかづき「よみちをてくてく」夜(21-6時)速度+30%
+    if (inParty('hatsuhinode') && timeInRange(hour, 5, 10)) purifyMult *= 2;  // はつひので「あさひのごあいさつ」朝(5-10時)浄化2倍
+    const hasHanamaru = inParty('hanamaru');       // 「はなまるチェック」→generateItemの抽選テーブル切替で加味
+    const hasNagareboshi = inParty('nagareboshi'); // 「ねがいごとシャワー」→るすばん報告で道具+1確定
+    const offlineTimeMult = inParty('otsukisama') ? 1.5 : 1; // 「おやすみのうた」→るすばん経過時間を1.5倍換算
+
     return {
       totalPower: totalPower, purifyMult: purifyMult, sasaMult: sasaMult,
       findMult: findMult, speedMult: speedMult,
       formationType: formationType, formationTalent: formationTalent,
       memberCount: members.length, hasMoonwalk: state.party.indexOf('moonwalk') !== -1,
+      hasHanamaru: hasHanamaru, hasNagareboshi: hasNagareboshi, offlineTimeMult: offlineTimeMult,
     };
   }
 
@@ -1320,8 +1479,9 @@
   /* ============================================================
    * 旅道具（アイテム）
    * ============================================================ */
-  function generateItem() {
-    const rarity = pickWeighted(BALANCE.equipRarityRates);
+  function generateItem(hasHanamaru) {
+    const rates = hasHanamaru ? BALANCE.hanamaruEquipRates : BALANCE.equipRarityRates;
+    const rarity = pickWeighted(rates);
     const type = pickRandom(EQUIP_TYPES);
     const count = BALANCE.equipEffectCountByRarity[rarity];
     const range = BALANCE.equipValueRangeByRarity[rarity];
@@ -1391,7 +1551,7 @@
       } else {
         if (!state.finalMessageShown) {
           state.finalMessageShown = true;
-          showToast('🎉 3つの町をまわりきったよ！ つづきはこれから！（Phase 2をまっててね）');
+          showToast('🎉 ' + TOWNS.length + 'つの町をまわりきったよ！ つづきはこれから！（おおもやもや戦をまっててね）');
           BgmEngine.playFanfare();
         }
         break;
@@ -1402,7 +1562,7 @@
   function maybeDropItem(stats) {
     const chance = Math.min(BALANCE.dropChanceCap, BALANCE.dropBaseChance * stats.findMult);
     if (Math.random() < chance) {
-      const item = generateItem();
+      const item = generateItem(stats.hasHanamaru);
       item.newFlag = computeIsNew(item);
       addItemToInventory(item);
       state.lastDrop = item;
@@ -1415,8 +1575,12 @@
    * るすばん報告（オフライン進行）
    * ============================================================ */
   function applyOfflineReport(elapsedMs) {
-    const capped = Math.min(elapsedMs, BALANCE.offlineCapMs);
     const stats = computeStats();
+    // 実際に離れていた時間をまず12hキャップで丸め、そのあとにおつきさま「おやすみのうた」の1.5倍を掛ける。
+    // （キャップ前に1.5倍すると、長時間離れたときはどのみち12hキャップに張り付いて差が出なくなってしまうため、
+    //   このスキルの「るすばん時間を1.5倍で計算」という効果が最大離脱時でもきちんと効くようにこの順番にしている）
+    const cappedRaw = Math.min(elapsedMs, BALANCE.offlineCapMs);
+    const capped = cappedRaw * (stats.offlineTimeMult || 1);
     const avgInterval = ((BALANCE.cloudIntervalMin + BALANCE.cloudIntervalMax) / 2) / stats.speedMult;
     const avgPurify = Math.max(BALANCE.cloudBaseTimeMin, BALANCE.cloudBaseTime / stats.purifyMult);
     const cycle = avgInterval + avgPurify;
@@ -1436,8 +1600,9 @@
     for (let i = 0; i < clouds && itemsGain < 3; i++) {
       if (Math.random() < dropChance) itemsGain++;
     }
+    if (stats.hasNagareboshi) itemsGain += 1; // ながれぼし「ねがいごとシャワー」：道具が必ず1つ増える
     for (let i = 0; i < itemsGain; i++) {
-      const item = generateItem();
+      const item = generateItem(stats.hasHanamaru);
       item.newFlag = computeIsNew(item);
       addItemToInventory(item);
       state.lastDrop = item;
@@ -1455,15 +1620,17 @@
     ['sasaCount', 'powerCount', 'townText', 'townFill', 'townPct', 'toast', 'popText', 'moyamoyaEl',
      'caravanEl', 'reportCard', 'reportDiary', 'reportList', 'reportClaimBtn', 'dropCard', 'dropIcon',
      'dropRank', 'dropName', 'dropNewBadge', 'dropFx', 'welcomeCard', 'partySlots', 'totalPowerText',
-     'formationText', 'equipSlots', 'invCount', 'invList', 'gachaPullBtn', 'ticketText', 'townList',
+     'formationText', 'autoFormationBtn', 'autoEquipBtn', 'equipSlots', 'invCount', 'invList', 'gachaPullBtn', 'ticketText', 'townList',
+     'pityText', 'pity50Btn', 'pity100Btn',
      'zukanTitle', 'zukanGrid', 'modalOverlay', 'modalTitle', 'modalList', 'modalCloseBtn',
      'gachaOverlay', 'gachaGrass', 'gachaSkipBtn', 'gachaResult', 'gachaResultRank', 'gachaResultName',
-     'gachaResultTalents', 'gachaResultFlavor', 'gachaResultNote', 'gachaCloseBtn',
+     'gachaResultTalents', 'gachaResultSkill', 'gachaResultFlavor', 'gachaResultNote', 'gachaCloseBtn',
+     'charOverlay', 'charDetailBody', 'charCloseBtn', 'charZoomOverlay', 'charZoomImg',
      'exportShowBtn', 'exportBox', 'exportTextarea', 'exportCopyBtn', 'exportMsg',
      'importShowBtn', 'importBox', 'importTextarea', 'importRunBtn', 'importMsg',
      'cloudCard', 'cloudDisconnectedBox', 'cloudConnectedBox', 'cloudConnectedName',
      'cloudNameInput', 'cloudSecretInput', 'cloudConnectBtn', 'cloudDisconnectBtn', 'cloudMsg',
-     'bgmToggleBtn'
+     'bgmToggleBtn', 'xShareBtn'
     ].forEach(function (id) { el[id] = q(id); });
   }
 
@@ -1477,7 +1644,7 @@
 
   function renderTownBar() {
     if (state.finalMessageShown) {
-      el.townText.textContent = '🗾 つづきはこれから！（Phase 2をまっててね）旅はまだまだつづくよ';
+      el.townText.textContent = '🗾 つづきはこれから！（おおもやもや戦をまっててね）旅はまだまだつづくよ';
       el.townFill.style.width = '100%';
       el.townPct.textContent = 'つづく…';
     } else {
@@ -1521,8 +1688,9 @@
     const sizeClass = ['', 'p2', 'p3', 'p4'];
     members.forEach(function (id, i) {
       const mirrored = id === 'moonwalk';
+      const def = CHAR_MAP[id];
       html += '<span class="panda-wrap' + (mirrored ? ' mirrored' : '') + '">' +
-        '<img class="panda ' + (sizeClass[i] || '') + '" src="' + IMG + '" alt="パンダさん"></span>';
+        '<img class="panda ' + (sizeClass[i] || '') + '" src="' + ((def && def.image) || IMG) + '" alt="パンダさん"></span>';
     });
     el.caravanEl.innerHTML = html;
   }
@@ -1537,7 +1705,7 @@
       } else {
         const def = CHAR_MAP[id];
         const owned = state.owned[id] || { awaken: 0 };
-        html += '<div class="slot" data-slot="' + i + '"><img src="' + IMG + '" alt="">' +
+        html += '<div class="slot" data-slot="' + i + '"><img src="' + (def.image || IMG) + '" alt="">' +
           '<b>' + def.name + (owned.awaken > 0 ? ' ★' + owned.awaken : '') + '</b>' +
           '<i>' + def.talents.join('・') + '</i></div>';
       }
@@ -1546,6 +1714,72 @@
     el.totalPowerText.textContent = fmt(stats.totalPower);
     el.formationText.textContent = formationLabelText(stats);
     renderScene();
+  }
+
+  function charRarityRank(r) { return { N: 0, R: 1, SR: 2, SSR: 3, UR: 4 }[r] || 0; }
+
+  function combinations(arr, k) {
+    const results = [];
+    function helper(start, combo) {
+      if (combo.length === k) { results.push(combo.slice()); return; }
+      for (let i = start; i < arr.length; i++) {
+        combo.push(arr[i]);
+        helper(i + 1, combo);
+        combo.pop();
+      }
+    }
+    helper(0, []);
+    return results;
+  }
+
+  // タイブレーク用キー（レア度高い順→覚醒多い順に並べた配列）どうしを比較する（大きいほど良い）
+  function compareTieKeys(keyA, keyB) {
+    const len = Math.max(keyA.length, keyB.length);
+    for (let i = 0; i < len; i++) {
+      const a = keyA[i] || [-1, -1];
+      const b = keyB[i] || [-1, -1];
+      if (a[0] !== b[0]) return a[0] - b[0];
+      if (a[1] !== b[1]) return a[1] - b[1];
+    }
+    return 0;
+  }
+
+  // ✨おまかせ編成：所持なかまから最大4人ぶんの全組み合わせを総当たりし、
+  // 編成ボーナス・おうえん上手・固有スキルの総合力系効果まで含めた実効キャラバン総合力が
+  // いちばん高くなる組み合わせを選ぶ（るすばん1.5倍・ドロップ率アップなど総合力に出ないスキルは評価対象外）。
+  // 同点タイブレークはレア度が高い順→覚醒Lvが多い順。
+  function autoFormationBest() {
+    const ids = Object.keys(state.owned);
+    const k = Math.min(4, ids.length);
+    if (k === 0) { showToast('まだなかまがいないみたい…'); return; }
+    const originalParty = state.party.slice();
+    let bestCombo = null, bestPower = -Infinity, bestKey = null;
+
+    combinations(ids, k).forEach(function (combo) {
+      const partyArr = combo.slice();
+      while (partyArr.length < 4) partyArr.push(null);
+      state.party = partyArr; // computeStats()はstate.partyを見るので一時的に差し替えて評価する
+      const stats = computeStats();
+      const key = combo.map(function (id) {
+        const def = CHAR_MAP[id];
+        const owned = state.owned[id];
+        return [charRarityRank(def.rarity), owned.awaken || 0];
+      }).sort(function (a, b) { return (b[0] - a[0]) || (b[1] - a[1]); });
+
+      if (stats.totalPower > bestPower + 1e-9) {
+        bestPower = stats.totalPower; bestCombo = combo; bestKey = key;
+      } else if (Math.abs(stats.totalPower - bestPower) <= 1e-9 && compareTieKeys(key, bestKey) > 0) {
+        bestPower = stats.totalPower; bestCombo = combo; bestKey = key;
+      }
+    });
+
+    state.party = originalParty; // 総当たり評価用の一時差し替えを元に戻してから、確定した編成を適用する
+    const finalParty = bestCombo ? bestCombo.slice() : [];
+    while (finalParty.length < 4) finalParty.push(null);
+    state.party = finalParty;
+    renderPartyPanel();
+    saveState();
+    showToast('✨ いちばん稼げるキャラバンにしたよ！');
   }
 
   function renderEquipPanel() {
@@ -1569,17 +1803,52 @@
       el.invList.innerHTML = '<div class="inv-empty">まだ旅道具はないみたい。旅にでかけると見つかるよ。</div>';
     } else {
       let html2 = '';
-      state.inventory.slice().sort(function (a, b) { return b.obtainedAt - a.obtainedAt; }).forEach(function (item) {
+      // つよい順（効果合計の降順）にならべる：いちばん上がいちばん装備の候補にしやすい子
+      state.inventory.slice().sort(function (a, b) { return effectSum(b) - effectSum(a); }).forEach(function (item) {
         const fx = item.effects.map(function (e) { return EFFECT_LABEL[e.type] + ' +' + e.value + '%'; }).join('・');
         html2 += '<div class="inv-item" data-uid="' + item.uid + '">' +
           '<div class="iic"><img class="chest-img" src="' + chestIconPath(item.rarity) + '" alt=""></div>' +
           '<div class="imeta"><div class="irank" style="color:' + RARITY_COLOR[item.rarity] + '">' +
           RARITY_STAR[item.rarity] + ' ' + RARITY_LABEL[item.rarity] + ' ・ ' + SLOT_LABEL[item.slot] +
           (item.newFlag ? '<span class="badge-new">NEW!</span>' : '') + '</div>' +
-          '<div>' + item.name + '：' + fx + '</div></div></div>';
+          '<div>' + item.name + '：' + fx + '</div>' +
+          '<div class="inv-diff">' + diffBadgeHtml(item) + '</div></div></div>';
       });
       el.invList.innerHTML = html2;
     }
+  }
+
+  // いま装備中の同じ枠の道具との効果合計の差分を表示（厳密でなくてよい・わかりやすさ優先）
+  function diffBadgeHtml(item) {
+    const equipped = state.equipment[item.slot];
+    const diff = effectSum(item) - (equipped ? effectSum(equipped) : 0);
+    if (diff > 0) return '<span class="up">▲ +' + diff + '% つよい！</span>';
+    if (diff < 0) return '<span class="down">▼ ' + diff + '%</span>';
+    return '<span class="same">→ おなじ</span>';
+  }
+
+  // ✨おまかせ装備：3枠すべて、いま持っている中でいちばん効果合計が高い道具にする
+  function autoEquipBest() {
+    ['kaburimono', 'mantle', 'omamori'].forEach(function (slot) {
+      const current = state.equipment[slot];
+      let best = current;
+      let bestSum = current ? effectSum(current) : -1;
+      state.inventory.filter(function (it) { return it.slot === slot; }).forEach(function (it) {
+        const s = effectSum(it);
+        if (s > bestSum) { bestSum = s; best = it; }
+      });
+      if (best && best !== current) {
+        const idx = state.inventory.indexOf(best);
+        if (idx !== -1) state.inventory.splice(idx, 1);
+        if (current) state.inventory.push(current);
+        best.newFlag = false;
+        state.equipment[slot] = best;
+      }
+    });
+    saveState();
+    renderEquipPanel();
+    renderPartyPanel();
+    showToast('✨ いちばんつよい組み合わせにしたよ！');
   }
 
   function renderGachaPanel() {
@@ -1591,6 +1860,10 @@
     } else {
       el.ticketText.style.display = 'none';
     }
+    const pt = state.omukaePt || 0;
+    el.pityText.textContent = 'おむかえpt ' + pt + '（50ptで好きなSSR、100ptで好きなURと交換できるよ）';
+    el.pity50Btn.disabled = pt < BALANCE.pityCost.SSR;
+    el.pity100Btn.disabled = pt < BALANCE.pityCost.UR;
   }
 
   function renderMap() {
@@ -1606,7 +1879,7 @@
       }
     });
     if (state.finalMessageShown) {
-      html += '<li>🌱 つぎの旅路 …Phase 2をまっててね</li>';
+      html += '<li>🌱 つぎの旅路 …おおもやもや戦をまっててね</li>';
     }
     el.townList.innerHTML = html;
   }
@@ -1618,15 +1891,52 @@
     let html = '';
     ALL_CHARS.forEach(function (def) {
       const owned = state.owned[def.id];
+      const r = def.rarity.toLowerCase();
       if (owned) {
-        html += '<div class="zcell"><img src="' + IMG + '" alt="">' + def.name +
+        html += '<div class="zcell r-' + r + '" data-id="' + def.id + '">' +
+          '<span class="zbadge b-' + r + '">' + def.rarity + '</span>' +
+          '<img src="' + (def.image || IMG) + '" alt="">' + def.name +
           (owned.awaken > 0 ? '<span class="zstar">★' + owned.awaken + '</span>' : '') + '</div>';
       } else {
-        html += '<div class="zcell unk"><img src="' + IMG + '" alt="">？？？</div>';
+        html += '<div class="zcell unk" data-id="' + def.id + '"><img src="' + (def.image || IMG) + '" alt="">？？？</div>';
       }
     });
     el.zukanGrid.innerHTML = html;
   }
+
+  // ずかんマスをタップ→詳細モーダル（未入手はシルエット表示）
+  function openCharDetail(id) {
+    const def = CHAR_MAP[id];
+    if (!def) return;
+    const img = def.image || IMG;
+    const owned = state.owned[id];
+    let html = '';
+    if (owned) {
+      const awaken = owned.awaken || 0;
+      const power = BALANCE.baseStatByRarity[def.rarity] * (1 + BALANCE.awakenBonusPerLevel * awaken);
+      const r = def.rarity.toLowerCase();
+      html += '<div style="text-align:center;"><img class="char-detail-img" id="charDetailImg" src="' + img + '" alt=""></div>' +
+        '<div class="char-detail-name">' + def.name + (awaken > 0 ? ' ★' + awaken : '') + '</div>' +
+        '<div><span class="zbadge b-' + r + '" style="display:inline-block;font-size:11px;margin-top:4px;">' + def.rarity + '</span></div>' +
+        '<div class="char-detail-talents">得意：' + def.talents.join('・') + '</div>' +
+        (def.skill ? '<div class="char-detail-skill">固有スキル「' + def.skill.name + '」<br>' + def.skill.desc + '</div>' : '') +
+        '<div class="char-detail-power">現在の総合力：<b>' + fmt(power) + '</b></div>' +
+        '<p class="char-detail-flavor">' + def.flavor + '</p>';
+    } else {
+      html += '<div style="text-align:center;"><img class="char-detail-img" style="cursor:default;filter:brightness(0);opacity:.45;" src="' + img + '" alt=""></div>' +
+        '<div class="char-detail-name">？？？（まだ会えてないよ）</div>';
+    }
+    el.charDetailBody.innerHTML = html;
+    el.charOverlay.style.display = 'flex';
+  }
+
+  function closeCharDetail() { el.charOverlay.style.display = 'none'; el.charDetailBody.innerHTML = ''; }
+
+  function openCharZoom(src) {
+    el.charZoomImg.src = src;
+    el.charZoomOverlay.style.display = 'flex';
+  }
+  function closeCharZoom() { el.charZoomOverlay.style.display = 'none'; el.charZoomImg.src = ''; }
 
   function renderAll() {
     renderHeader();
@@ -1636,6 +1946,26 @@
     renderGachaPanel();
     renderMap();
     renderZukan();
+    updateShareLink();
+  }
+
+  // ── Xシェア（旅タブ）：本文はセーブから動的生成。リンクはタップ時ではなく描画のたびに最新化しておく ──
+  function currentTownNameForShare() {
+    if (state.finalMessageShown) return TOWNS[TOWNS.length - 1].name;
+    return TOWNS[state.townIndex].name;
+  }
+  function buildShareText() {
+    const stats = computeStats();
+    const memberCount = Object.keys(state.owned).length;
+    return '🐼 笹友キャラバンで旅のとちゅう！\n' +
+      'いま「' + currentTownNameForShare() + '」で、キャラバン総合力 ' + fmt(stats.totalPower) + '・なかま ' + memberCount + '人だよ\n' +
+      'るすばん中もパンダさんたちが働いてくれるの🎋\n' +
+      '#笹友キャラバン #パンダさんパワー';
+  }
+  function updateShareLink() {
+    if (!el.xShareBtn) return;
+    const gameUrl = 'https://fuyutosan.github.io/sasatomo-caravan/';
+    el.xShareBtn.href = 'https://x.com/intent/post?text=' + encodeURIComponent(buildShareText()) + '&url=' + encodeURIComponent(gameUrl);
   }
 
   function showDropCard(item) {
@@ -1662,6 +1992,26 @@
   /* ============================================================
    * ガチャ
    * ============================================================ */
+  // ガチャ・天井交換で共通の「入手処理」（既存所持ならかぶり→覚醒、初めてならなかま入り）
+  function obtainCharacter(chosen) {
+    let noteText = '';
+    if (state.owned[chosen.id]) {
+      const owned = state.owned[chosen.id];
+      if (owned.awaken >= BALANCE.awakenMax) {
+        const gain = BALANCE.dupConvertSasa[chosen.rarity] || BALANCE.dupConvertSasa.SR;
+        state.sasa += gain;
+        noteText = 'すでに覚醒MAX！ 笹 ' + fmt(gain) + '本に かわったよ。';
+      } else {
+        owned.awaken++;
+        noteText = 'かぶり！ 覚醒レベルが +1（Lv' + owned.awaken + '）になったよ。';
+      }
+    } else {
+      state.owned[chosen.id] = { awaken: 0 };
+      noteText = 'はじめまして！ なかまに くわわったよ。';
+    }
+    return noteText;
+  }
+
   function pullGacha() {
     resetGachaDayIfNeeded();
     let free = false;
@@ -1678,26 +2028,41 @@
     const rarity = pickWeighted(BALANCE.rosterRates);
     const pool = GACHA_POOL.filter(function (c) { return c.rarity === rarity; });
     const chosen = pickRandom(pool);
-
-    let noteText = '';
-    if (state.owned[chosen.id]) {
-      const owned = state.owned[chosen.id];
-      if (owned.awaken >= BALANCE.awakenMax) {
-        const gain = BALANCE.dupConvertSasa[chosen.rarity];
-        state.sasa += gain;
-        noteText = 'すでに覚醒MAX！ 笹 ' + fmt(gain) + '本に かわったよ。';
-      } else {
-        owned.awaken++;
-        noteText = 'かぶり！ 覚醒レベルが +1（Lv' + owned.awaken + '）になったよ。';
-      }
-    } else {
-      state.owned[chosen.id] = { awaken: 0 };
-      noteText = 'はじめまして！ なかまに くわわったよ。';
-    }
+    const noteText = obtainCharacter(chosen);
+    state.omukaePt = (state.omukaePt || 0) + 1; // ガチャ1回ごとに おむかえpt +1
 
     renderHeader(); renderGachaPanel(); renderZukan(); renderPartyPanel();
     saveState();
     playGachaAnimation(chosen, rarity, noteText);
+  }
+
+  const PITY_LABEL = { SSR: 'SSR', UR: 'UR' };
+  function openPityPicker(rarity) {
+    const cost = BALANCE.pityCost[rarity];
+    if ((state.omukaePt || 0) < cost) { showToast('おむかえpt が ' + cost + ' に足りないよ…'); return; }
+    el.modalTitle.textContent = 'こうかんする ' + PITY_LABEL[rarity] + ' をえらぶ';
+    let html = '';
+    GACHA_POOL.filter(function (c) { return c.rarity === rarity; }).forEach(function (def) {
+      const owned = state.owned[def.id];
+      const note = owned ? (owned.awaken >= BALANCE.awakenMax ? '（かぶり→笹に変換）' : '（かぶり→覚醒+1）') : '（はじめまして）';
+      html += '<div class="modal-list-item" data-action="redeem" data-rarity="' + rarity + '" data-id="' + def.id + '">' +
+        '<img src="' + (def.image || IMG) + '" alt=""><div class="mmeta"><b>' + def.name +
+        (owned && owned.awaken > 0 ? ' ★' + owned.awaken : '') + '</b>' + note + '<br>' + def.talents.join('・') + '</div></div>';
+    });
+    el.modalList.innerHTML = html;
+    el.modalOverlay.style.display = 'flex';
+  }
+
+  function redeemExchange(rarity, id) {
+    const cost = BALANCE.pityCost[rarity];
+    if ((state.omukaePt || 0) < cost) { showToast('おむかえpt が足りないよ…'); return; }
+    const chosen = CHAR_MAP[id];
+    if (!chosen) return;
+    state.omukaePt -= cost;
+    const noteText = obtainCharacter(chosen);
+    renderHeader(); renderGachaPanel(); renderZukan(); renderPartyPanel();
+    saveState();
+    showToast('🎁 ' + chosen.name + ' を こうかんで おむかえしたよ！' + noteText);
   }
 
   let gachaRevealTimer = null;
@@ -1706,18 +2071,30 @@
     el.gachaResult.style.display = 'none';
     el.gachaGrass.style.display = '';
     el.gachaSkipBtn.style.display = '';
-    el.gachaGrass.style.setProperty('--glow-color', CHAR_RARITY_COLOR[rarity]);
+    el.gachaGrass.classList.toggle('ur-rainbow', rarity === 'UR');
+    el.gachaGrass.classList.toggle('sr-metal', rarity === 'SR');
+    if (rarity === 'UR' || rarity === 'SR') {
+      el.gachaGrass.style.removeProperty('--glow-color');
+    } else {
+      el.gachaGrass.style.setProperty('--glow-color', CHAR_RARITY_COLOR[rarity]);
+    }
     el.gachaGrass.classList.add('shaking');
 
     function reveal() {
       if (gachaRevealTimer) { clearTimeout(gachaRevealTimer); gachaRevealTimer = null; }
-      el.gachaGrass.classList.remove('shaking');
+      el.gachaGrass.classList.remove('shaking', 'ur-rainbow', 'sr-metal');
       el.gachaGrass.style.display = 'none';
       el.gachaSkipBtn.style.display = 'none';
       el.gachaResultRank.textContent = rarity + '（' + chosen.talents.join('・') + '）';
       el.gachaResultRank.style.color = CHAR_RARITY_COLOR[rarity];
       el.gachaResultName.textContent = chosen.name;
       el.gachaResultTalents.textContent = chosen.talents.join('・');
+      if (chosen.skill) {
+        el.gachaResultSkill.textContent = '固有スキル「' + chosen.skill.name + '」' + chosen.skill.desc;
+        el.gachaResultSkill.style.display = '';
+      } else {
+        el.gachaResultSkill.style.display = 'none';
+      }
       el.gachaResultFlavor.textContent = chosen.flavor;
       el.gachaResultNote.textContent = noteText;
       el.gachaResultNote.style.display = noteText ? '' : 'none';
@@ -1745,7 +2122,7 @@
       const def = CHAR_MAP[id];
       const owned = state.owned[id];
       html += '<div class="modal-list-item" data-action="set-party" data-slot="' + slotIndex + '" data-id="' + id + '">' +
-        '<img src="' + IMG + '" alt=""><div class="mmeta"><b>' + def.name +
+        '<img src="' + (def.image || IMG) + '" alt=""><div class="mmeta"><b>' + def.name +
         (owned.awaken > 0 ? ' ★' + owned.awaken : '') + '</b><br>' + def.talents.join('・') + '</div></div>';
     });
     el.modalList.innerHTML = html;
@@ -1839,6 +2216,8 @@
       openPartyPicker(parseInt(slotEl.dataset.slot, 10));
     });
 
+    el.autoFormationBtn.addEventListener('click', autoFormationBest);
+
     el.equipSlots.addEventListener('click', function (ev) {
       const slotEl = ev.target.closest('[data-slot]');
       if (!slotEl) return;
@@ -1871,15 +2250,35 @@
       } else if (action === 'unequip') {
         unequipItem(item.dataset.slot);
         renderEquipPanel(); renderPartyPanel();
+      } else if (action === 'redeem') {
+        redeemExchange(item.dataset.rarity, item.dataset.id);
       }
       closeModal();
     });
     el.modalCloseBtn.addEventListener('click', closeModal);
     el.modalOverlay.addEventListener('click', function (ev) { if (ev.target === el.modalOverlay) closeModal(); });
 
+    el.autoEquipBtn.addEventListener('click', autoEquipBest);
+
     el.gachaPullBtn.addEventListener('click', pullGacha);
     el.gachaCloseBtn.addEventListener('click', function () { el.gachaOverlay.style.display = 'none'; });
     el.gachaOverlay.addEventListener('click', function (ev) { if (ev.target === el.gachaOverlay) el.gachaOverlay.style.display = 'none'; });
+    el.pity50Btn.addEventListener('click', function () { openPityPicker('SSR'); });
+    el.pity100Btn.addEventListener('click', function () { openPityPicker('UR'); });
+
+    el.zukanGrid.addEventListener('click', function (ev) {
+      const cellEl = ev.target.closest('[data-id]');
+      if (!cellEl) return;
+      openCharDetail(cellEl.dataset.id);
+    });
+    el.charDetailBody.addEventListener('click', function (ev) {
+      const img = ev.target.closest('#charDetailImg');
+      if (!img) return;
+      openCharZoom(img.src);
+    });
+    el.charCloseBtn.addEventListener('click', closeCharDetail);
+    el.charOverlay.addEventListener('click', function (ev) { if (ev.target === el.charOverlay) closeCharDetail(); });
+    el.charZoomOverlay.addEventListener('click', closeCharZoom);
 
     el.exportShowBtn.addEventListener('click', showExportCode);
     el.exportCopyBtn.addEventListener('click', copyExportCode);
@@ -1944,6 +2343,23 @@
     bindUIEvents();
     saveState();
   }
+
+  // 動作確認用（Playwright等の外部検証がstate・内部関数を見られるように。BgmEngineの公開と同じ趣旨）
+  window.__caravanDebug = {
+    getState: function () { return state; },
+    setState: function (patch) { Object.assign(state, patch); },
+    computeStats: computeStats,
+    autoFormationBest: autoFormationBest,
+    autoEquipBest: autoEquipBest,
+    obtainCharacter: obtainCharacter,
+    applyOfflineReport: applyOfflineReport,
+    renderAll: renderAll,
+    saveState: saveState,
+    CHAR_MAP: CHAR_MAP,
+    BALANCE: BALANCE,
+    runtime: runtime,
+    spawnCloud: spawnCloud,
+  };
 
   window.addEventListener('DOMContentLoaded', function () { init(); });
 })();
