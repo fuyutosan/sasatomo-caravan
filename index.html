@@ -319,7 +319,73 @@
   .pity .btn.pity-ur { background: linear-gradient(90deg, #ff5252, #ffb400, #ffe066, #4aa3ff, #b06bff); border-color: #7a3fd0; box-shadow: 0 4px 0 #7a3fd0; }
   .pity .btn.pity-ur:active { box-shadow: 0 1px 0 #7a3fd0; }
 
+  /* ── 10連ガチャ ── */
+  .btn.gacha10 { background: #7a3fd0; border-color: #4a2080; box-shadow: 0 4px 0 #4a2080; margin-top: 8px; }
+  .btn.gacha10:active { box-shadow: 0 1px 0 #4a2080; }
+  .g10-note { font-size: 11px; color: #7a3fd0; margin-top: 4px; text-align: center; }
+  .g10-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 6px; }
+  .g10-card {
+    border: 2px solid var(--dark); background: #f2f7ef; text-align: center;
+    padding: 6px 2px; font-size: 9px; line-height: 1.4;
+  }
+  .g10-card.r-n { border-color: #35c04a; }
+  .g10-card.r-r { border-color: #4aa3ff; }
+  .g10-card.r-sr {
+    border: 2px solid transparent;
+    background: linear-gradient(#f2f7ef, #f2f7ef) padding-box,
+      linear-gradient(135deg, #e8e8f0, #9aa0b0, #f4f4f8) border-box;
+  }
+  .g10-card.r-ssr { border-color: #ffb400; }
+  .g10-card.r-ur {
+    border: 2px solid transparent;
+    background: linear-gradient(#f2f7ef, #f2f7ef) padding-box,
+      linear-gradient(90deg, #ff5252, #ffb400, #ffe066, #4aa3ff, #b06bff, #ff5252) border-box;
+  }
+  .g10-name { font-size: 9px; }
+  .g10-rarity { font-size: 8px; color: #888; }
+  .g10-best { margin-top: 10px; }
+
+  /* ── 金の手紙 ── */
+  .golden-letter-card { border-color: #ffb400; box-shadow: 4px 4px 0 rgba(255, 180, 0, .3); }
+  .golden-letter-card h2 { color: #a67c00; }
+  .btn.golden-letter-btn { background: #ffb400; border-color: #a67c00; box-shadow: 0 4px 0 #a67c00; margin-top: 8px; }
+  .btn.golden-letter-btn:active { box-shadow: 0 1px 0 #a67c00; }
+
   .towns { list-style: none; font-size: 13px; line-height: 2.1; }
+
+  /* ── おおもやもや戦（エリアボス） ── */
+  .boss-card h2 { color: #b0473f; }
+  .btn.boss-challenge { background: #b0473f; border-color: #6e2b26; box-shadow: 0 4px 0 #6e2b26; margin-bottom: 8px; }
+  .btn.boss-challenge:active { box-shadow: 0 1px 0 #6e2b26; }
+  .boss-cleared-row { font-size: 12px; color: #4a6b4f; background: #eef6ea; border: 2px solid #cfe3c8; padding: 8px; margin-bottom: 8px; }
+  .boss-modal { text-align: center; }
+  .boss-scene {
+    position: relative; height: 140px; background: #241a2c;
+    border: 3px solid var(--dark); overflow: hidden; margin: 8px 0;
+  }
+  .boss-moyamoya {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: 110px; height: 110px;
+    background: url(assets/scene/moyamoya.png) center/contain no-repeat;
+    filter: grayscale(.3) brightness(.9);
+    animation: bossWobble 1.3s ease-in-out infinite;
+  }
+  @keyframes bossWobble { 50% { transform: translate(-50%, -58%) rotate(-4deg); } }
+  .boss-hpbar { height: 20px; background: #333; border: 2px solid var(--dark); position: relative; }
+  .boss-hpbar .fill { position: absolute; inset: 0; width: 100%; background: linear-gradient(90deg, #ff6b6b, #ff9d6b); transition: width .3s linear; }
+  .boss-hpbar .boss-hptext { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #fff; text-shadow: 1px 1px 0 #000; }
+  .boss-timer { font-size: 13px; margin-top: 6px; }
+  .boss-hint { font-size: 11px; color: #666; margin-top: 4px; }
+
+  /* ── 笑顔雲（おおもやもや戦の勝利記録・旅シーンにずっと表示） ── */
+  .smile-clouds { position: absolute; top: 6px; left: 0; right: 0; height: 40px; z-index: 1; pointer-events: none; }
+  .smile-cloud {
+    position: absolute; top: 0; width: 46px; height: 30px;
+    background: url(assets/scene/moyamoya.png) center/contain no-repeat;
+    filter: brightness(1.9) saturate(.3) drop-shadow(0 0 4px rgba(255, 250, 200, .7));
+    opacity: .95;
+  }
+  .smile-cloud .smile-badge { position: absolute; bottom: -4px; right: -4px; font-size: 12px; }
 
   /* ── セーブのひきつぎ ── */
   .save-card p { margin-bottom: 10px; }
@@ -483,6 +549,7 @@
     <div class="layer l-far"></div>
     <div class="layer l-mid"></div>
     <div class="layer l-trees"></div>
+    <div class="smile-clouds" id="smileCloudsEl"></div>
     <div class="toast" id="toast"></div>
     <div class="pop" id="popText"></div>
     <div class="moyamoya" id="moyamoyaEl" style="display:none;"></div>
@@ -555,7 +622,9 @@
         <h2>🎋 なかまのおむかえ</h2>
         <div class="grass"><div class="grass-bushes"><img class="bush-icon" src="assets/scene/bush.png" alt=""><img class="bush-icon" src="assets/scene/bush.png" alt=""><img class="bush-icon" src="assets/scene/bush.png" alt=""></div><div class="hint">笹をおいて、草むらのまえで待ってみよう…<br>光の色がにじいろなら…！？</div></div>
         <button class="btn gacha" id="gachaPullBtn">🎋 笹をおく（笹 3,000）</button>
+        <button class="btn gacha10" id="gacha10PullBtn">🎋 10れんで おむかえ（笹 30,000）</button>
         <p class="ticket" id="ticketText">✉️ おさそいの手紙 ×1（1回ぶん無料！）</p>
+        <p class="g10-note">10れんは10枠目がSR以上確定だよ</p>
         <div class="rates">
           <span class="rc n">N 55%</span><span class="rc r">R 30%</span><span class="rc sr">SR 11%</span><span class="rc ssr">SSR 3.5%</span><span class="rc ur">UR 0.5%</span>
         </div>
@@ -565,6 +634,13 @@
           <button class="btn pity-ur" id="pity100Btn">🌈 100ptで好きなURと交換</button>
         </div>
       </section>
+
+      <section class="card golden-letter-card">
+        <h2>💌 金の手紙</h2>
+        <p>おおもやもや戦に勝つともらえる、とくべつな手紙だよ。使うとSSR以上のなかまが確定でおむかえできるよ。</p>
+        <p class="ticket" id="goldenLetterText">💌 金の手紙 ×0</p>
+        <button class="btn golden-letter-btn" id="goldenLetterBtn">💌 金の手紙をつかう（SSR以上確定）</button>
+      </section>
     </div>
 
     <!-- 🗾 地図タブ -->
@@ -572,6 +648,11 @@
       <section class="card">
         <h2>🗾 旅の地図</h2>
         <ul class="towns" id="townList"></ul>
+      </section>
+
+      <section class="card boss-card" id="bossCard" style="display:none;">
+        <h2>🥊 おおもやもや</h2>
+        <div id="bossAreaList"></div>
       </section>
 
       <section class="card save-card" id="cloudCard">
@@ -654,6 +735,11 @@
       <p class="gresult-note" id="gachaResultNote" style="display:none;"></p>
       <button class="btn gacha" id="gachaCloseBtn" style="margin-top:12px;">とじる</button>
     </div>
+    <div id="gacha10Result" style="display:none;">
+      <div class="g10-grid" id="gacha10Grid"></div>
+      <div class="g10-best" id="gacha10Best"></div>
+      <button class="btn gacha" id="gacha10CloseBtn" style="margin-top:12px;">とじる</button>
+    </div>
   </div>
 </div>
 
@@ -668,6 +754,27 @@
 <!-- キャラ画像フルスクリーン拡大 -->
 <div class="char-zoom-overlay" id="charZoomOverlay" style="display:none;">
   <img id="charZoomImg" src="" alt="">
+</div>
+
+<!-- おおもやもや戦モーダル -->
+<div class="modal-overlay" id="bossOverlay" style="display:none;">
+  <div class="modal-box boss-modal">
+    <div id="bossBattleView">
+      <h3>🥊 おおもやもや戦</h3>
+      <div class="boss-scene">
+        <div class="boss-moyamoya" id="bossMoyamoyaEl"></div>
+      </div>
+      <div class="boss-hpbar"><div class="fill" id="bossHpFill"></div><span class="boss-hptext" id="bossHpText"></span></div>
+      <p class="boss-timer" id="bossTimerText">のこり 60びょう</p>
+      <p class="boss-hint">見てるだけでOK！キャラバンの浄化力でゲージを削るよ</p>
+    </div>
+    <div id="bossResultView" style="display:none;">
+      <h3 id="bossResultTitle"></h3>
+      <p id="bossResultText"></p>
+      <ul id="bossResultRewards"></ul>
+      <button class="btn" id="bossCloseBtn" style="margin-top:10px;">とじる</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -721,6 +828,13 @@
     },
     timeBandOrder: ['morning', 'day', 'evening', 'night'],
     timeBandBonus: 0.20, // 得意な時間帯のあいだ、その子の総合力+20%
+    // ── おおもやもや戦（エリアボス・企画書.md §4-7） ──
+    bossUnlockTownCounts: [3, 6, 8], // クリア済み町数がこの値に達するとそのエリアのボスが解放される（3体固定）
+    bossBattleMs: 60000,
+    bossHpBase: 900,       // エリア1のHP（浄化力の平均的な編成でだいたい60秒ぴったりで削りきれる想定）
+    bossHpGrowth: 1.8,     // エリアが進むごとにHPが1.8倍
+    bossDpsPerPurifyMult: 10, // 1秒あたりのダメージ = これ × stats.purifyMult
+    goldenLetterRates: { SSR: 0.875, UR: 0.125 }, // 金の手紙＝SSR以上確定（3.5:0.5の比率のまま正規化）
   };
 
   const SAVE_KEY = 'sasatomo-caravan-v1';
@@ -931,18 +1045,35 @@
     }
 
     // 帯が夜のときは「よるのキャラバン」、それ以外は通常の「てくてくキャラバン」をループする。
-    // ループを予約するたび（＝次のループの頭でだけ）帯をチェックするので、再生中に帯をまたいでも
+    // ループを予約するたび（＝次のループの頭でだけ）帯・モードをチェックするので、再生中に帯をまたいでも
     // いま鳴っている小節が急に切り替わることはなく、次のループ境界から自然に切り替わる。
-    let currentTrackName = 'day'; // 'day' | 'night'（動作確認用に公開。dayは朝/昼/夕をまとめて指す）
+    // おおもやもや戦中（mode==='boss'）はscheduleBoss()をループする（enterBossMode/exitBossModeで即時切替）。
+    let currentTrackName = 'day'; // 'day' | 'night' | 'boss'（動作確認用に公開。dayは朝/昼/夕をまとめて指す）
+    let mode = 'normal'; // 'normal' | 'boss'
     function loopStep() {
       const t0 = ctx.currentTime + 0.1;
-      const band = (typeof getCurrentBand === 'function') ? getCurrentBand() : null;
-      const isNight = band === 'night';
-      currentTrackName = isNight ? 'night' : 'day';
-      const len = isNight ? scheduleNight(t0) : scheduleLoop(t0);
+      let len;
+      if (mode === 'boss') {
+        currentTrackName = 'boss';
+        len = scheduleBoss(t0);
+      } else {
+        const band = (typeof getCurrentBand === 'function') ? getCurrentBand() : null;
+        const isNight = band === 'night';
+        currentTrackName = isNight ? 'night' : 'day';
+        len = isNight ? scheduleNight(t0) : scheduleLoop(t0);
+      }
       loopTimer = setTimeout(function () { if (playing) loopStep(); }, (len - 0.3) * 1000);
     }
     function getCurrentTrack() { return currentTrackName; }
+    // おおもやもや戦の開始/終了で即座にBGMを切り替える（ループ境界を待たない＝バトルの手ざわりを優先）
+    function enterBossMode() {
+      mode = 'boss';
+      if (playing) { clearTimeout(loopTimer); loopStep(); }
+    }
+    function exitBossMode() {
+      mode = 'normal';
+      if (playing) { clearTimeout(loopTimer); loopStep(); }
+    }
 
     /* ============================================================
      * アレンジ3トラック（bgm_arrange.html・ふゆとさん3曲とも承認済みをそのまま移植）
@@ -1073,8 +1204,9 @@
     return {
       start: start, stop: stop, toggle: toggle, isPlaying: isPlaying, getCtxState: getCtxState,
       playFanfare: playFanfare, getLastFanfareAt: getLastFanfareAt,
-      playBoss: playBoss, playNight: playNight, // playBossは待機搭載（Phase 2以降まで未使用）。playNightは自動選曲の内部実装として稼働開始。
-      getCurrentTrack: getCurrentTrack, // 検証用：'day'（てくてくキャラバン）| 'night'（よるのキャラバン）
+      playBoss: playBoss, playNight: playNight, // playNightは自動選曲の内部実装として稼働。playBossは単体呼び出し用に残置（実際の切替はenterBossMode経由）
+      enterBossMode: enterBossMode, exitBossMode: exitBossMode, // おおもやもや戦の開始/終了でBGMを即切替
+      getCurrentTrack: getCurrentTrack, // 検証用：'day'（てくてくキャラバン）| 'night'（よるのキャラバン）| 'boss'（おおもやもや戦）
     };
   })();
   window.BgmEngine = BgmEngine; // 動作確認用（Playwright等の外部検証がAudioContextの状態を見られるように）
@@ -1259,6 +1391,8 @@
       lastSeen: now,
       totalCloudsCleared: 0,
       omukaePt: 0,
+      bossWon: {},       // { エリア番号: true } おおもやもや戦の勝利記録（笑顔雲として空にずっと表示）
+      goldenLetters: 0,  // 金の手紙💌の所持数
     };
   }
   let state = null;
@@ -1452,6 +1586,15 @@
     resetGachaDayIfNeeded();
     return Math.round(BALANCE.gachaBaseCost * Math.pow(BALANCE.gachaCostGrowth, state.gachaPulls));
   }
+  // 10連のコスト＝単発と同じ式で10段階ぶん逓増した合計（gachaPullsが10進むのと同じ計算を先取りして合算する）
+  function currentGacha10Cost() {
+    resetGachaDayIfNeeded();
+    let total = 0;
+    for (let i = 0; i < 10; i++) {
+      total += Math.round(BALANCE.gachaBaseCost * Math.pow(BALANCE.gachaCostGrowth, state.gachaPulls + i));
+    }
+    return total;
+  }
 
   // overrideBand/overrideHour：るすばん全帯精算のセグメント評価で「そのセグメントの帯・時刻」を明示指定するための引数。
   // 省略時（通常のリアルタイム描画）は端末の「いま」を使う。
@@ -1567,9 +1710,9 @@
   /* ============================================================
    * 旅道具（アイテム）
    * ============================================================ */
-  function generateItem(hasHanamaru) {
+  function generateItem(hasHanamaru, forcedRarity) {
     const rates = hasHanamaru ? BALANCE.hanamaruEquipRates : BALANCE.equipRarityRates;
-    const rarity = pickWeighted(rates);
+    const rarity = forcedRarity || pickWeighted(rates); // forcedRarity：おおもやもや戦の「でんせつ級確定」ドロップ用
     const type = pickRandom(EQUIP_TYPES);
     const count = BALANCE.equipEffectCountByRarity[rarity];
     const range = BALANCE.equipValueRangeByRarity[rarity];
@@ -1808,6 +1951,8 @@
      'dropRank', 'dropName', 'dropNewBadge', 'dropFx', 'welcomeCard', 'partySlots', 'totalPowerText',
      'formationText', 'autoFormationBtn', 'autoEquipBtn', 'equipSlots', 'invCount', 'invList', 'gachaPullBtn', 'ticketText', 'townList',
      'pityText', 'pity50Btn', 'pity100Btn',
+     'gacha10PullBtn', 'gacha10Result', 'gacha10Grid', 'gacha10Best', 'gacha10CloseBtn',
+     'goldenLetterText', 'goldenLetterBtn',
      'zukanTitle', 'zukanGrid', 'modalOverlay', 'modalTitle', 'modalList', 'modalCloseBtn',
      'gachaOverlay', 'gachaGrass', 'gachaSkipBtn', 'gachaResult', 'gachaResultRank', 'gachaResultName',
      'gachaResultTalents', 'gachaResultSkill', 'gachaResultFlavor', 'gachaResultNote', 'gachaCloseBtn',
@@ -1817,7 +1962,10 @@
      'cloudCard', 'cloudDisconnectedBox', 'cloudConnectedBox', 'cloudConnectedName',
      'cloudNameInput', 'cloudSecretInput', 'cloudConnectBtn', 'cloudDisconnectBtn', 'cloudMsg',
      'bgmToggleBtn', 'xShareBtn',
-     'sceneEl', 'skyLayerA', 'skyLayerB', 'starsEl', 'bandIconBtn'
+     'sceneEl', 'skyLayerA', 'skyLayerB', 'starsEl', 'bandIconBtn', 'smileCloudsEl',
+     'bossCard', 'bossAreaList', 'bossOverlay', 'bossBattleView', 'bossResultView',
+     'bossMoyamoyaEl', 'bossHpFill', 'bossHpText', 'bossTimerText',
+     'bossResultTitle', 'bossResultText', 'bossResultRewards', 'bossCloseBtn'
     ].forEach(function (id) { el[id] = q(id); });
   }
 
@@ -2110,6 +2258,7 @@
   function renderGachaPanel() {
     const cost = currentGachaCost();
     el.gachaPullBtn.textContent = '🎋 笹をおく（笹 ' + fmt(cost) + '）';
+    el.gacha10PullBtn.textContent = '🎋 10れんで おむかえ（笹 ' + fmt(currentGacha10Cost()) + '）';
     if (state.ticket > 0) {
       el.ticketText.style.display = '';
       el.ticketText.textContent = '✉️ おさそいの手紙 ×' + state.ticket + '（1回ぶん無料！）';
@@ -2120,6 +2269,10 @@
     el.pityText.textContent = 'おむかえpt ' + pt + '（50ptで好きなSSR、100ptで好きなURと交換できるよ）';
     el.pity50Btn.disabled = pt < BALANCE.pityCost.SSR;
     el.pity100Btn.disabled = pt < BALANCE.pityCost.UR;
+
+    const letters = state.goldenLetters || 0;
+    el.goldenLetterText.textContent = '💌 金の手紙 ×' + letters;
+    el.goldenLetterBtn.disabled = letters <= 0;
   }
 
   function renderMap() {
@@ -2138,6 +2291,120 @@
       html += '<li>🌱 つぎの旅路 …おおもやもや戦をまっててね</li>';
     }
     el.townList.innerHTML = html;
+    renderBossAreas();
+  }
+
+  /* ============================================================
+   * おおもやもや戦（エリアボス・企画書.md §4-7）
+   * 「倒すんじゃなく笑顔にする」世界観：勝つとおおきな笑顔雲になって空に住みつく（罰なし・何度でも挑戦可）
+   * ============================================================ */
+  function bossAreaTownName(area) {
+    const idx = BALANCE.bossUnlockTownCounts[area - 1] - 1; // 1-indexedのしきい値→0-indexedのTOWNS配列
+    return (TOWNS[idx] && TOWNS[idx].name) || '';
+  }
+  function bossHpForArea(area) {
+    return Math.round(BALANCE.bossHpBase * Math.pow(BALANCE.bossHpGrowth, area - 1));
+  }
+  function bossDamageForElapsed(purifyMult, elapsedMs) {
+    return BALANCE.bossDpsPerPurifyMult * purifyMult * (elapsedMs / 1000);
+  }
+
+  function renderBossAreas() {
+    const unlockedCount = BALANCE.bossUnlockTownCounts.filter(function (t) { return (state.clearedTowns || 0) >= t; }).length;
+    if (unlockedCount === 0) { el.bossCard.style.display = 'none'; return; }
+    el.bossCard.style.display = '';
+    let html = '';
+    for (let area = 1; area <= unlockedCount; area++) {
+      if (state.bossWon && state.bossWon[area]) {
+        html += '<p class="boss-cleared-row">🌤 ' + bossAreaTownName(area) + 'の空に、大きな笑顔雲がいるよ</p>';
+      } else {
+        html += '<button class="btn boss-challenge" data-area="' + area + '">🥊 おおもやもやが空にいるよ…挑戦する？（' + bossAreaTownName(area) + '）</button>';
+      }
+    }
+    el.bossAreaList.innerHTML = html;
+  }
+
+  // 旅シーンに笑顔雲を表示する（勝った証・セーブに記録されているのでずっと空に住みつく）
+  function renderSmileClouds() {
+    if (!el.smileCloudsEl) return;
+    let html = '';
+    BALANCE.bossUnlockTownCounts.forEach(function (_, idx) {
+      const area = idx + 1;
+      if (state.bossWon && state.bossWon[area]) {
+        const leftPct = 8 + idx * 30;
+        html += '<div class="smile-cloud" style="left:' + leftPct + '%;" title="' + bossAreaTownName(area) + 'で おおもやもやを 笑顔にした証">' +
+          '<span class="smile-badge">😊</span></div>';
+      }
+    });
+    el.smileCloudsEl.innerHTML = html;
+  }
+
+  let bossTickTimer = null;
+  function startBossBattle(area) {
+    const maxHp = bossHpForArea(area);
+    runtime.boss = { active: true, area: area, maxHp: maxHp, startedAt: Date.now(), timeLimitMs: BALANCE.bossBattleMs };
+    el.bossResultView.style.display = 'none';
+    el.bossBattleView.style.display = '';
+    el.bossOverlay.style.display = 'flex';
+    BgmEngine.enterBossMode();
+    renderBossProgress(maxHp, maxHp, BALANCE.bossBattleMs);
+    if (bossTickTimer) clearInterval(bossTickTimer);
+    bossTickTimer = setInterval(bossTick, 200);
+    bossTick();
+  }
+
+  function bossTick() {
+    if (!runtime.boss || !runtime.boss.active) return;
+    const elapsed = Date.now() - runtime.boss.startedAt;
+    const stats = computeStats();
+    const damage = bossDamageForElapsed(stats.purifyMult, elapsed);
+    const hp = Math.max(0, runtime.boss.maxHp - damage);
+    renderBossProgress(hp, runtime.boss.maxHp, Math.max(0, runtime.boss.timeLimitMs - elapsed));
+    if (hp <= 0) { finishBossBattle(true); return; }
+    if (elapsed >= runtime.boss.timeLimitMs) { finishBossBattle(false); return; }
+  }
+
+  function renderBossProgress(hp, maxHp, remainingMs) {
+    const pct = Math.max(0, Math.min(100, (hp / maxHp) * 100));
+    el.bossHpFill.style.width = pct + '%';
+    el.bossHpText.textContent = fmt(hp) + ' / ' + fmt(maxHp);
+    el.bossTimerText.textContent = 'のこり ' + Math.ceil(remainingMs / 1000) + 'びょう';
+  }
+
+  function finishBossBattle(won) {
+    if (bossTickTimer) { clearInterval(bossTickTimer); bossTickTimer = null; }
+    const area = runtime.boss.area;
+    runtime.boss.active = false;
+    BgmEngine.exitBossMode();
+    el.bossBattleView.style.display = 'none';
+    el.bossResultView.style.display = '';
+    if (won) {
+      if (!state.bossWon) state.bossWon = {};
+      state.bossWon[area] = true;
+      state.goldenLetters = (state.goldenLetters || 0) + 1;
+      const rewardLines = ['💌 金の手紙を 1つ もらったよ！'];
+      if (Math.random() < 0.5) {
+        const item = generateItem(computeStats().hasHanamaru, 'densetsu');
+        item.newFlag = computeIsNew(item);
+        addItemToInventory(item);
+        state.lastDrop = item;
+        rewardLines.push('🎁 でんせつ級の旅道具「' + item.name + '」も見つけたよ！');
+      }
+      el.bossResultTitle.textContent = '🎉 おおもやもやが おおきな笑顔になった！';
+      el.bossResultText.textContent = '';
+      el.bossResultRewards.innerHTML = rewardLines.map(function (t) { return '<li>' + t + '</li>'; }).join('');
+      BgmEngine.playFanfare();
+    } else {
+      el.bossResultTitle.textContent = 'じかんぎれ…';
+      el.bossResultText.textContent = 'もやもやは にげないから、つよくなって また来てね';
+      el.bossResultRewards.innerHTML = '';
+    }
+    saveState();
+    renderHeader();
+    renderGachaPanel();
+    renderEquipPanel();
+    renderBossAreas();
+    renderSmileClouds();
   }
 
   function renderZukan() {
@@ -2206,6 +2473,7 @@
     renderGachaPanel();
     renderMap();
     renderZukan();
+    renderSmileClouds();
     updateShareLink();
   }
 
@@ -2367,6 +2635,97 @@
     el.gachaSkipBtn.onclick = reveal;
   }
 
+  // 10連ガチャ：コスト逓増は単発と同じ式で10段階ぶん先取りする。10枠目だけSR以上確定（SR/SSR/URを比率のまま正規化して抽選）
+  function pullGacha10() {
+    resetGachaDayIfNeeded();
+    const cost = currentGacha10Cost();
+    if (state.sasa < cost) { showToast('🎋 笹が足りないみたい…'); return; }
+    state.sasa -= cost;
+
+    const guaranteedSum = BALANCE.rosterRates.SR + BALANCE.rosterRates.SSR + BALANCE.rosterRates.UR;
+    const guaranteedRates = {
+      SR: BALANCE.rosterRates.SR / guaranteedSum,
+      SSR: BALANCE.rosterRates.SSR / guaranteedSum,
+      UR: BALANCE.rosterRates.UR / guaranteedSum,
+    };
+    const results = [];
+    for (let i = 0; i < 10; i++) {
+      const rarity = (i === 9) ? pickWeighted(guaranteedRates) : pickWeighted(BALANCE.rosterRates);
+      const pool = GACHA_POOL.filter(function (c) { return c.rarity === rarity; });
+      const chosen = pickRandom(pool);
+      const noteText = obtainCharacter(chosen);
+      results.push({ chosen: chosen, rarity: rarity, noteText: noteText });
+    }
+    state.gachaPulls += 10;
+    state.omukaePt = (state.omukaePt || 0) + 10;
+
+    renderHeader(); renderGachaPanel(); renderZukan(); renderPartyPanel();
+    saveState();
+    playGacha10Animation(results);
+    return results; // 動作確認用（クリックハンドラからは戻り値を使わない）
+  }
+
+  function playGacha10Animation(results) {
+    el.gachaOverlay.style.display = 'flex';
+    el.gachaResult.style.display = 'none';
+    el.gacha10Result.style.display = 'none';
+    el.gachaGrass.style.display = '';
+    el.gachaSkipBtn.style.display = '';
+
+    let bestRarity = 'N';
+    results.forEach(function (r) { if (charRarityRank(r.rarity) > charRarityRank(bestRarity)) bestRarity = r.rarity; });
+    el.gachaGrass.classList.toggle('ur-rainbow', bestRarity === 'UR');
+    el.gachaGrass.classList.toggle('sr-metal', bestRarity === 'SR');
+    if (bestRarity === 'UR' || bestRarity === 'SR') {
+      el.gachaGrass.style.removeProperty('--glow-color');
+    } else {
+      el.gachaGrass.style.setProperty('--glow-color', CHAR_RARITY_COLOR[bestRarity]);
+    }
+    el.gachaGrass.classList.add('shaking');
+
+    function reveal() {
+      if (gachaRevealTimer) { clearTimeout(gachaRevealTimer); gachaRevealTimer = null; }
+      el.gachaGrass.classList.remove('shaking', 'ur-rainbow', 'sr-metal');
+      el.gachaGrass.style.display = 'none';
+      el.gachaSkipBtn.style.display = 'none';
+
+      let gridHtml = '';
+      results.forEach(function (r) {
+        const rC = r.rarity.toLowerCase();
+        gridHtml += '<div class="g10-card r-' + rC + '"><div class="g10-name">' + r.chosen.name + '</div><div class="g10-rarity">' + r.rarity + '</div></div>';
+      });
+      el.gacha10Grid.innerHTML = gridHtml;
+
+      let best = results[0];
+      results.forEach(function (r) { if (charRarityRank(r.rarity) >= charRarityRank(best.rarity)) best = r; });
+      el.gacha10Best.innerHTML =
+        '<div class="gresult-rank" style="color:' + CHAR_RARITY_COLOR[best.rarity] + ';">' + best.rarity + '（' + best.chosen.talents.join('・') + '）</div>' +
+        '<div class="gresult-name">' + best.chosen.name + '</div>' +
+        (best.chosen.skill ? '<p class="gresult-skill">固有スキル「' + best.chosen.skill.name + '」' + best.chosen.skill.desc + '</p>' : '') +
+        '<p class="gresult-flavor">' + best.chosen.flavor + '</p>';
+
+      el.gacha10Result.style.display = '';
+    }
+    gachaRevealTimer = setTimeout(reveal, 1200);
+    el.gachaSkipBtn.onclick = reveal;
+  }
+
+  // 金の手紙💌：使うとSSR以上確定の1回ガチャ（SSR 87.5% / UR 12.5%）
+  function pullGoldenLetter() {
+    if ((state.goldenLetters || 0) <= 0) { showToast('💌 金の手紙を持ってないみたい…'); return; }
+    state.goldenLetters -= 1;
+    const rarity = pickWeighted(BALANCE.goldenLetterRates);
+    const pool = GACHA_POOL.filter(function (c) { return c.rarity === rarity; });
+    const chosen = pickRandom(pool);
+    const noteText = obtainCharacter(chosen);
+    state.omukaePt = (state.omukaePt || 0) + 1;
+
+    renderHeader(); renderGachaPanel(); renderZukan(); renderPartyPanel();
+    saveState();
+    playGachaAnimation(chosen, rarity, noteText);
+    return { rarity: rarity, chosen: chosen }; // 動作確認用
+  }
+
   /* ============================================================
    * モーダル（編成選択・そうび選択）
    * ============================================================ */
@@ -2416,7 +2775,7 @@
   /* ============================================================
    * メインループ（旅シーン：もやもや雲の出現→浄化）
    * ============================================================ */
-  const runtime = { cloudState: 'idle', nextSpawnAt: 0, purifyEndAt: 0 };
+  const runtime = { cloudState: 'idle', nextSpawnAt: 0, purifyEndAt: 0, boss: null };
 
   function spawnCloud() {
     runtime.cloudState = 'active';
@@ -2524,10 +2883,20 @@
     el.autoEquipBtn.addEventListener('click', autoEquipBest);
 
     el.gachaPullBtn.addEventListener('click', pullGacha);
+    el.gacha10PullBtn.addEventListener('click', pullGacha10);
     el.gachaCloseBtn.addEventListener('click', function () { el.gachaOverlay.style.display = 'none'; });
+    el.gacha10CloseBtn.addEventListener('click', function () { el.gachaOverlay.style.display = 'none'; });
     el.gachaOverlay.addEventListener('click', function (ev) { if (ev.target === el.gachaOverlay) el.gachaOverlay.style.display = 'none'; });
     el.pity50Btn.addEventListener('click', function () { openPityPicker('SSR'); });
     el.pity100Btn.addEventListener('click', function () { openPityPicker('UR'); });
+    el.goldenLetterBtn.addEventListener('click', pullGoldenLetter);
+
+    el.bossAreaList.addEventListener('click', function (ev) {
+      const btn = ev.target.closest('[data-area]');
+      if (!btn) return;
+      startBossBattle(parseInt(btn.dataset.area, 10));
+    });
+    el.bossCloseBtn.addEventListener('click', function () { el.bossOverlay.style.display = 'none'; });
 
     el.zukanGrid.addEventListener('click', function (ev) {
       const cellEl = ev.target.closest('[data-id]');
@@ -2634,6 +3003,12 @@
     BALANCE: BALANCE,
     runtime: runtime,
     spawnCloud: spawnCloud,
+    startBossBattle: startBossBattle,
+    bossTick: bossTick,
+    bossHpForArea: bossHpForArea,
+    pullGacha10: pullGacha10,
+    pullGoldenLetter: pullGoldenLetter,
+    currentGacha10Cost: currentGacha10Cost,
   };
 
   window.addEventListener('DOMContentLoaded', function () { init(); });
