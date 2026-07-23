@@ -62,6 +62,15 @@
     position: sticky; top: 0; z-index: 40;
   }
   header h1 { font-size: 20px; letter-spacing: 2px; text-shadow: 2px 2px 0 #045c0c; }
+  .head-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .bgm-toggle {
+    flex: none; font-family: inherit; font-size: 16px; line-height: 1; cursor: pointer;
+    width: 34px; height: 30px; padding: 0;
+    background: rgba(255, 255, 255, .18); color: #fff;
+    border: 2px solid rgba(255, 255, 255, .5); border-radius: 6px;
+    opacity: .6;
+  }
+  .bgm-toggle.on { background: #ffe066; color: #045c0c; border-color: #fff; opacity: 1; }
   .status { display: flex; justify-content: space-between; font-size: 13px; margin-top: 4px; }
 
   .town {
@@ -331,7 +340,10 @@
 <div class="phone">
 
   <header>
-    <h1>🐼 笹友キャラバン</h1>
+    <div class="head-row">
+      <h1>🐼 笹友キャラバン</h1>
+      <button id="bgmToggleBtn" class="bgm-toggle" title="BGM ON/OFF" aria-pressed="false">🎵</button>
+    </div>
     <div class="status"><span>🎋 笹 <span id="sasaCount">0</span></span><span>✨ パンダさんパワー <span id="powerCount">0</span></span></div>
   </header>
 
@@ -647,6 +659,139 @@
       clearCred: clearCred, schedulePush: schedulePush, pushNow: pushNow, pull: pull, config: CLOUD_CONFIG,
     };
   })();
+
+  /* ============================================================
+   * BGM（bgm.html の音楽エンジンをそのまま移植。テンポ92固定・全パートON）
+   * 参考: C:\Users\pikap\Claude\cowork\mei-panda-hisho\sasatomo-caravan\bgm.html
+   * ============================================================ */
+  const BgmEngine = (function () {
+    const BPM = 92;
+    const MASTER_VOL = 0.5 * 0.6; // bgm.html のマスター0.5×おんりょう60%相当を固定値に
+
+    const NOTE = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+    function freq(name) { // 例 "C4" "A3"
+      const n = NOTE[name[0]] + (name.length === 3 && name[1] === '#' ? 1 : 0);
+      const oct = parseInt(name[name.length - 1]);
+      return 440 * Math.pow(2, (n - 9) / 12 + (oct - 4));
+    }
+
+    // ---- 楽譜（8分音符グリッド・1小節=8マス・null=休符） ----
+    const MELODY = [
+      // Aパート：昼の道（明るいドレミソラ）
+      ['C4', 'D4', 'E4', 'G4', 'A4', 'G4', 'E4', 'D4'],
+      ['E4', 'G4', 'A4', 'C5', 'A4', 'G4', 'E4', 'G4'],
+      ['A4', 'G4', 'E4', 'G4', 'A4', 'C5', 'D5', 'C5'],
+      ['A4', 'G4', 'E4', 'D4', 'C4', null, null, null],
+      ['C4', 'D4', 'E4', 'G4', 'A4', 'G4', 'E4', 'D4'],
+      ['E4', 'G4', 'A4', 'C5', 'A4', 'G4', 'E4', 'G4'],
+      ['D5', 'C5', 'A4', 'C5', 'D5', 'E5', 'D5', 'C5'],
+      ['A4', 'C5', 'A4', 'G4', 'E4', null, null, null],
+      // Bパート：夕暮れ（短調寄り・切なさ）
+      ['E4', 'D4', 'C4', 'D4', 'E4', 'G4', 'E4', 'D4'],
+      ['C4', 'D4', 'E4', 'D4', 'C4', 'A3', 'C4', 'D4'],
+      ['E4', 'G4', 'A4', 'G4', 'E4', 'D4', 'C4', 'D4'],
+      ['E4', 'D4', 'C4', 'A3', 'G3', null, 'A3', null],
+      ['E4', 'D4', 'C4', 'D4', 'E4', 'G4', 'A4', 'G4'],
+      ['C5', 'A4', 'G4', 'A4', 'C5', 'D5', 'C5', 'A4'],
+      ['G4', 'A4', 'C5', 'A4', 'G4', 'E4', 'D4', 'E4'],
+      ['C4', null, null, null, 'C4', null, null, null],
+    ];
+    // 小節ごとのコード（ベース用 root と fifth）
+    const BASS = [
+      ['C2', 'G2'], ['F2', 'C3'], ['G2', 'D3'], ['C2', 'G2'],
+      ['A2', 'E3'], ['F2', 'C3'], ['G2', 'D3'], ['C2', 'G2'],
+      ['A2', 'E3'], ['F2', 'C3'], ['G2', 'D3'], ['A2', 'E3'],
+      ['A2', 'E3'], ['F2', 'C3'], ['G2', 'D3'], ['C2', 'G2'],
+    ];
+
+    let ctx = null, master = null, playing = false, loopTimer = null, noiseBuf = null;
+
+    function ensureCtx() {
+      if (!ctx) {
+        ctx = new (window.AudioContext || window.webkitAudioContext)();
+        master = ctx.createGain();
+        master.gain.value = MASTER_VOL;
+        master.connect(ctx.destination);
+      }
+    }
+
+    function playTone(type, f, t, dur, vol) {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = type; o.frequency.value = f;
+      g.gain.setValueAtTime(vol, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+      o.connect(g); g.connect(master);
+      o.start(t); o.stop(t + dur + 0.02);
+    }
+    function playKick(t) {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(110, t);
+      o.frequency.exponentialRampToValueAtTime(45, t + 0.09);
+      g.gain.setValueAtTime(0.35, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+      o.connect(g); g.connect(master);
+      o.start(t); o.stop(t + 0.12);
+    }
+    function playHat(t) {
+      if (!noiseBuf) {
+        noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 0.05, ctx.sampleRate);
+        const d = noiseBuf.getChannelData(0);
+        for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      }
+      const s = ctx.createBufferSource(); s.buffer = noiseBuf;
+      const f = ctx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 6000;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.07, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+      s.connect(f); f.connect(g); g.connect(master);
+      s.start(t);
+    }
+
+    // 1ループ（16小節）ぶんをまとめて予約する（全パート常にON・テンポ92固定）
+    function scheduleLoop(t0) {
+      const eighth = 60 / BPM / 2;
+      for (let bar = 0; bar < 16; bar++) {
+        const barT = t0 + bar * 8 * eighth;
+        for (let i = 0; i < 8; i++) {
+          const t = barT + i * eighth;
+          const n = MELODY[bar][i];
+          if (n) playTone('square', freq(n), t, eighth * 0.92, 0.11);
+          if (i % 2 === 1) playHat(t);
+        }
+        playTone('triangle', freq(BASS[bar][0]), barT, eighth * 3.6, 0.25);
+        playTone('triangle', freq(BASS[bar][1]), barT + 4 * eighth, eighth * 3.6, 0.22);
+        playKick(barT); playKick(barT + 4 * eighth);
+      }
+      return 16 * 8 * eighth; // ループの長さ(秒)
+    }
+
+    function loopStep() {
+      const t0 = ctx.currentTime + 0.1;
+      const len = scheduleLoop(t0);
+      loopTimer = setTimeout(function () { if (playing) loopStep(); }, (len - 0.3) * 1000);
+    }
+
+    function start() {
+      ensureCtx();
+      if (ctx.state === 'suspended') ctx.resume();
+      if (playing) return;
+      playing = true;
+      loopStep();
+    }
+    function stop() {
+      playing = false;
+      clearTimeout(loopTimer);
+      if (ctx) { try { ctx.close(); } catch (e) { /* すでに閉じていても気にしない */ } }
+      ctx = null; master = null;
+    }
+    function toggle() { if (playing) stop(); else start(); return playing; }
+    function isPlaying() { return playing; }
+    function getCtxState() { return ctx ? ctx.state : 'closed'; } // 検証用（AudioContextの状態を外から見えるように）
+
+    return { start: start, stop: stop, toggle: toggle, isPlaying: isPlaying, getCtxState: getCtxState };
+  })();
+  window.BgmEngine = BgmEngine; // 動作確認用（Playwright等の外部検証がAudioContextの状態を見られるように）
 
   /* ============================================================
    * マスターデータ
@@ -1188,7 +1333,8 @@
      'exportShowBtn', 'exportBox', 'exportTextarea', 'exportCopyBtn', 'exportMsg',
      'importShowBtn', 'importBox', 'importTextarea', 'importRunBtn', 'importMsg',
      'cloudCard', 'cloudDisconnectedBox', 'cloudConnectedBox', 'cloudConnectedName',
-     'cloudNameInput', 'cloudSecretInput', 'cloudConnectBtn', 'cloudDisconnectBtn', 'cloudMsg'
+     'cloudNameInput', 'cloudSecretInput', 'cloudConnectBtn', 'cloudDisconnectBtn', 'cloudMsg',
+     'bgmToggleBtn'
     ].forEach(function (id) { el[id] = q(id); });
   }
 
@@ -1617,6 +1763,12 @@
 
     el.cloudConnectBtn.addEventListener('click', handleCloudConnect);
     el.cloudDisconnectBtn.addEventListener('click', handleCloudDisconnect);
+
+    el.bgmToggleBtn.addEventListener('click', function () {
+      const nowOn = BgmEngine.toggle();
+      el.bgmToggleBtn.classList.toggle('on', nowOn);
+      el.bgmToggleBtn.setAttribute('aria-pressed', nowOn ? 'true' : 'false');
+    });
   }
 
   /* ============================================================
