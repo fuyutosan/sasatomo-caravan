@@ -179,7 +179,8 @@
   }
   @keyframes roll { to { background-position-x: -28px; } }
 
-  .caravan { position: absolute; bottom: 40px; left: 16px; display: flex; align-items: flex-end; gap: 6px; z-index: 2; transition: filter 2.5s ease; }
+  /* bottom:54px＝地面(.ground・高さ56px)の上面に足の裏がのる位置（2026-07-24 めり込み修正。草の質感に2px程度かかるのは意図的） */
+  .caravan { position: absolute; bottom: 54px; left: 16px; display: flex; align-items: flex-end; gap: 6px; z-index: 2; transition: filter 2.5s ease; }
   .wagonwrap { position: relative; }
   .wagon { width: 84px; display: block; image-rendering: pixelated; animation: bob .7s ease-in-out infinite; animation-delay: .1s; }
   .wagonwrap .sasa { position: absolute; top: -12px; right: 4px; font-size: 18px; letter-spacing: -6px; }
@@ -196,9 +197,52 @@
   .panda.p4 { width: 40px; animation-delay: .5s; }
   @keyframes bob { 50% { transform: translateY(-5px); } }
 
+  /* ── 馬車が育つ（展望アイデア帳.md④・保存不要の導出値。既存wagon.pngへの飾り重ねのみ・新規画像なし） ── */
+  .wagon-flag { position: absolute; top: -22px; left: 6px; font-size: 16px; z-index: 3; }
+  .wagon-lantern {
+    position: absolute; top: -15px; right: 0; font-size: 15px; z-index: 3;
+    transform-origin: top center; animation: lanternSway 1.6s ease-in-out infinite;
+  }
+  @keyframes lanternSway { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(8deg); } }
+  .wagon-glow { filter: drop-shadow(0 0 8px rgba(255, 205, 80, .85)) drop-shadow(0 0 3px rgba(255, 235, 150, .9)); }
+  /* 絵巻マップの現在地マーカーは小さい(34px)ので、飾りも少し控えめなサイズ・位置に */
+  .emaki-current-marker { position: relative; }
+  .emaki-current-marker .wagon-flag { top: -13px; left: 0; font-size: 11px; }
+  .emaki-current-marker .wagon-lantern { top: -8px; right: -3px; font-size: 10px; }
+
+  /* ── なかまのおしゃべり（展望アイデア帳.md⑦・吹き出しは.scene直下の使い回し1個をキャラの位置に動かす方式） ── */
+  .chat-bubble {
+    position: absolute; z-index: 6; transform: translate(-50%, -100%);
+    background: #fff; color: var(--dark); border: 2px solid var(--dark); border-radius: 8px;
+    padding: 4px 8px; font-size: 11px; line-height: 1.4; max-width: 150px; text-align: center;
+    opacity: 0; transition: opacity .3s ease; pointer-events: none; display: none;
+  }
+  .chat-bubble.show { opacity: 1; }
+  .chat-bubble::after {
+    content: ''; position: absolute; left: 50%; bottom: -6px; transform: translateX(-50%);
+    border-width: 6px 6px 0; border-style: solid; border-color: #fff transparent transparent;
+    filter: drop-shadow(0 1.5px 0 var(--dark));
+  }
+
+  /* ── 夜キャンプ（展望アイデア帳.md⑥・収入や進行への影響はゼロ。見た目だけの休憩演出） ── */
+  .scene.camping .l-far, .scene.camping .l-mid, .scene.camping .l-trees, .scene.camping .ground {
+    animation-play-state: paused;
+  }
+  .scene.camping .moyamoya { display: none !important; } /* キャンプ中はもやもや雲を出さない */
+  /* z-index:3＝.caravan(2)より前面。パンダさんたちが焚き火を囲む見た目にするため、あえて手前に重ねている */
+  .campfire { position: absolute; bottom: 54px; left: 190px; width: 40px; height: 46px; z-index: 3; display: none; }
+  .campfire .logs { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); font-size: 20px; }
+  .campfire .flame-outer, .campfire .flame-inner {
+    position: absolute; left: 50%; bottom: 13px; border-radius: 50% 50% 45% 45% / 60% 60% 40% 40%;
+  }
+  .campfire .flame-outer { width: 24px; height: 32px; background: #ff8c2e; animation: campFlameOuter .6s ease-in-out infinite alternate; }
+  .campfire .flame-inner { width: 13px; height: 19px; background: #ffe066; animation: campFlameInner .45s ease-in-out infinite alternate; }
+  @keyframes campFlameOuter { 0% { transform: translateX(-50%) scale(1); opacity: .9; } 100% { transform: translateX(-50%) scale(1.16) rotate(-3deg); opacity: 1; } }
+  @keyframes campFlameInner { 0% { transform: translateX(-50%) scale(.85); } 100% { transform: translateX(-50%) scale(1.2) rotate(4deg); } }
+
   .moyamoya {
-    /* 頭上の空エリアに配置（パンダさんは bottom:40px・高さ約74pxなので、bottom:150pxなら4人編成でも重ならない） */
-    position: absolute; bottom: 150px; right: 18px; font-size: 44px;
+    /* 頭上の空エリアに配置（パンダさんは bottom:54px・高さ約74pxなので、bottom:164pxなら4人編成でも重ならない。2026-07-24 caravanのbottom変更に合わせて+14） */
+    position: absolute; bottom: 164px; right: 18px; font-size: 44px;
     animation: wobble 1.6s ease-in-out infinite;
     filter: grayscale(.4);
     z-index: 2;
@@ -210,8 +254,8 @@
   @keyframes wobble { 50% { transform: translateY(-8px) rotate(-6deg); } }
 
   .pop {
-    /* シーン左側の空いている空エリア（キャラバンの頭上左）に配置：右側はもやもや雲の場所として分離する */
-    position: absolute; bottom: 150px; left: 16px;
+    /* シーン左側の空いている空エリア（キャラバンの頭上左）に配置：右側はもやもや雲の場所として分離する（2026-07-24 caravanのbottom変更に合わせて+14） */
+    position: absolute; bottom: 164px; left: 16px;
     font-size: 13px; color: #d9ffa0; font-weight: bold;
     text-shadow: 1px 1px 0 #2a3a1a;
     z-index: 5;
@@ -626,6 +670,12 @@
     <div class="toast" id="toast"></div>
     <div class="pop" id="popText"></div>
     <div class="moyamoya" id="moyamoyaEl" style="display:none;"></div>
+    <div class="chat-bubble" id="chatBubbleEl"></div>
+    <div class="campfire" id="campfireEl">
+      <span class="flame-outer"></span>
+      <span class="flame-inner"></span>
+      <span class="logs">🪵</span>
+    </div>
     <div class="caravan" id="caravanEl">
       <div class="wagonwrap">
         <span class="sasa">🎋🎋</span>
@@ -937,6 +987,12 @@
     bossConfidentRatio: 1.05, // 60秒ぶんの想定削り量がHPのこの倍率以上→😊勝てそう！
     bossCloseRatio: 0.85,     // 〜この倍率以上なら😅いい勝負／それ未満は😰まだきびしいかも
     goldenLetterRates: { SSR: 0.875, UR: 0.125 }, // 金の手紙＝SSR以上確定（3.5:0.5の比率のまま正規化）
+    // ── 夜キャンプ（展望アイデア帳.md⑥）：夜の帯のあいだ、10分ごとに約60秒キャラバンが焚き火休憩する。収入・進行には一切影響しない見た目だけの演出 ──
+    campIntervalMs: 10 * 60 * 1000,
+    campDurationMs: 60 * 1000,
+    // ── なかまのおしゃべり（展望アイデア帳.md⑦） ──
+    chatterMinMs: 20000,
+    chatterMaxMs: 40000,
   };
 
   const SAVE_KEY = 'sasatomo-caravan-v1';
@@ -1397,6 +1453,45 @@
   const CHAR_MAP = {};
   ALL_CHARS.forEach(function (c) { CHAR_MAP[c.id] = c; });
 
+  /* ============================================================
+   * なかまのおしゃべり（展望アイデア帳.md⑦）：全30人ぶんの専用セリフ×2＋共通セリフ＋キャンプ専用セリフ
+   * 各キャラの設定ひとこと（flavor）と矛盾しない内容にする
+   * ============================================================ */
+  const CHAR_LINES = {
+    taicho: ['みんな、いいペースだよ！', 'こまったことは ないかい？'],
+    chacha: ['うしろの子、だいじょうぶ〜？', 'みんな ちゃんと ついてきてる？'],
+    tekuteku: ['いま、8000ほ…かぞえちゅう', '今日も たくさん あるいたね'],
+    kirari: ['あ、あそこに 明かりが見える！', 'わたし、目だけは じしんあるよ'],
+    suyasuya: ['すぴー…がんばれー…すぴー', 'あるきながらでも ねむれちゃうの'],
+    nonbiri: ['あわてない あわてない', 'いつのまにか ついてるものだよ'],
+    shakishaki: ['さあ、しゃきっと いこう！', 'ねぐせ、なおしておいたよ'],
+    korokoro: ['ころころ〜っと らくちんだよ', '坂道は とくいなんだ'],
+    mochimochi: ['ほっぺ、さわってみる？', 'もちもち あるいてるよ'],
+    runrun: ['るんるん♪ きょうも たのしいね', 'とくに理由はないけど きぶんがいいの'],
+    hokuhoku: ['この土、いい土…', 'なにか うまってる きがする'],
+    moonwalk: ['うしろ向きでも まえに すすめるよ', 'コツは…ひみつ'],
+    nikoniko: ['にこにこ〜 きょうもいい日だね', 'おこった顔、まだ誰も見たことないんだって'],
+    tokotoko: ['とことこ とことこ〜', 'ちいさい歩幅でも ちゃんとすすむよ'],
+    sasanoha: ['笹のことなら まかせて！', 'まだまだ しんまいだけど がんばるよ'],
+    takenoko: ['ぐんぐん のびてる きがする！', 'まだまだ おおきくなるよ'],
+    kotsubu: ['ひくいところ、まかせて', 'ちいさくても やくにたつよ'],
+    mameta: ['まめに はしって まめに やすむよ', 'つぎ、いつやすもうかな'],
+    ohayou: ['おはよう！…って、もう夕方だっけ', 'あいさつは いつでも おはようなの'],
+    mogumogu: ['もぐもぐ…', 'あれ、笹が いつのまにか たまってる'],
+    yurayura: ['ゆらゆら〜 ゆれてるだけで たのしい', 'みんなの マスコットです'],
+    kurikuri: ['あ、なにか みつけた！…あれ、ない', '目だけは じまんなんだ'],
+    gorogoro: ['ごろごろ〜っと 収穫祭だよ', '転がるだけで しごとになるの、ふしぎだね'],
+    pikapika: ['えへへ、また光っちゃった？', 'キラキラスマイル、とくいなの'],
+    onpu: ['♪ふんふふ〜ん', '今日の鼻歌、きいてくれた？'],
+    hanamaru: ['この旅道具、はなまる！', '今日のキャラバンも はなまるだよ'],
+    mikazuki: ['お月さま、きれいだね…あ、つまずいた', '夜ふかしは とくいなんだ'],
+    nagareboshi: ['ねがいごと、なにか ある？', '今夜も どこかで だれかの ねがいを かなえたいな'],
+    otsukisama: ['みんな、ゆっくり おやすみね', 'わたしは ずっと 見ているよ'],
+    hatsuhinode: ['会えた日は いいことが あるよ', '朝いちばんの光、きもちいいね'],
+  };
+  const COMMON_LINES = ['いい天気だね〜', 'つぎの町まで もうすこし！', 'みんな げんきかな？', '笹、ひろっておくね', 'ふぅ、いい旅だね'];
+  const CAMP_LINES = ['あったかいね', 'たき火、きもちいいね', 'ちょっと ひとやすみしよう', 'ぱちぱち…いい音だね', 'また あした がんばろう'];
+
   // なかまのレア度並び順（ソシャゲ標準：UR→SSR→SR→R→N が上）。charRarityRank()もこの表を使う。
   const CHAR_RARITY_ORDER = { UR: 4, SSR: 3, SR: 2, R: 1, N: 0 };
   // ずかん・編成選択リストで使う「レア度順（同レア内は定義順のまま＝Array.sortの安定性を利用）」の並び
@@ -1764,10 +1859,10 @@
     a.click();
     document.body.removeChild(a);
   }
-  // フォールバック（Web Share APIが使えない環境）：がぞうを自動ダウンロード＋Xポスト画面を新タブで開く
+  // フォールバック（Web Share APIが使えない環境）：がぞうを自動ダウンロード＋Xへの投稿導線を開く（アプリ優先→web版フォールバックはshareToXが担当）
   function shareSnapFallback(shareText, gameUrl) {
     downloadSnap();
-    window.open('https://x.com/intent/post?text=' + encodeURIComponent(shareText) + '&url=' + encodeURIComponent(gameUrl), '_blank');
+    shareToX(shareText, gameUrl);
     showToast('がぞうを ぽすとに そえてね');
   }
   async function shareSnap() {
@@ -2153,9 +2248,43 @@
   }
 
   /* ============================================================
+   * 馬車が育つ（展望アイデア帳.md④準拠：保存不要の導出値。進行度から毎回計算するだけ）
+   * Lv1=初期／Lv2=3町クリア／Lv3=6町クリア／Lv4=8町クリア＋ボス3勝
+   * ============================================================ */
+  function bossWinCount() {
+    const won = state.bossWon || {};
+    return Object.keys(won).filter(function (k) { return won[k]; }).length;
+  }
+  function wagonLevel() {
+    const cleared = state.clearedTowns || 0;
+    if (cleared >= 8 && bossWinCount() >= 3) return 4;
+    if (cleared >= 6) return 3;
+    if (cleared >= 3) return 2;
+    return 1;
+  }
+  // 馬車Lvに応じた飾り（🚩／🏮）のhtml断片。旅シーンの幌馬車・絵巻マップの現在地マーカーの両方で使う
+  function wagonDecorHtml(lv) {
+    let html = '';
+    if (lv >= 2) html += '<span class="wagon-flag">🚩</span>';
+    if (lv >= 3) html += '<span class="wagon-lantern">🏮</span>';
+    return html;
+  }
+  // レベルが上がった瞬間だけトースト＋旅日記に記録し、見た目を再描画する
+  function checkWagonLevelUp(beforeLv) {
+    const afterLv = wagonLevel();
+    if (afterLv > beforeLv) {
+      showToast('🚚 キャラバンが りっぱになった！');
+      addJournalEntry('キャラバンが りっぱになった（馬車Lv' + afterLv + '）');
+      renderScene();
+      renderEmaki();
+    }
+  }
+
+  /* ============================================================
    * 町・浄化の進行
    * ============================================================ */
   function advanceTownGauge(n) {
+    const beforeWagonLv = wagonLevel();
     state.gauge += n;
     state.totalCloudsCleared += n;
     while (state.townIndex < TOWNS.length && state.gauge >= TOWNS[state.townIndex].requirement) {
@@ -2179,6 +2308,7 @@
         break;
       }
     }
+    checkWagonLevelUp(beforeWagonLv);
   }
 
   function maybeDropItem(stats) {
@@ -2359,7 +2489,8 @@
      'bossCard', 'bossAreaList', 'bossOverlay', 'bossBattleView', 'bossResultView',
      'bossMoyamoyaEl', 'bossHpFill', 'bossHpText', 'bossTimerText', 'bossSmileForceText',
      'bossResultTitle', 'bossResultText', 'bossHintText', 'bossResultRewards', 'bossCloseBtn',
-     'snapCard', 'snapGrid', 'snapOverlay', 'snapDetailBody', 'snapSaveBtn', 'snapShareBtn', 'snapCloseBtn'
+     'snapCard', 'snapGrid', 'snapOverlay', 'snapDetailBody', 'snapSaveBtn', 'snapShareBtn', 'snapCloseBtn',
+     'chatBubbleEl', 'campfireEl'
     ].forEach(function (id) { el[id] = q(id); });
   }
 
@@ -2479,12 +2610,14 @@
 
   function renderScene() {
     const members = state.party.filter(Boolean);
-    let html = '<div class="wagonwrap"><span class="sasa">🎋🎋</span><img class="wagon" src="assets/scene/wagon.png" alt="ほろ馬車"></div>';
+    const lv = wagonLevel();
+    let html = '<div class="wagonwrap">' + wagonDecorHtml(lv) + '<span class="sasa">🎋🎋</span>' +
+      '<img class="wagon' + (lv >= 4 ? ' wagon-glow' : '') + '" src="assets/scene/wagon.png" alt="ほろ馬車"></div>';
     const sizeClass = ['', 'p2', 'p3', 'p4'];
     members.forEach(function (id, i) {
       const mirrored = id === 'moonwalk';
       const def = CHAR_MAP[id];
-      html += '<span class="panda-wrap' + (mirrored ? ' mirrored' : '') + '">' +
+      html += '<span class="panda-wrap' + (mirrored ? ' mirrored' : '') + '" data-char-id="' + id + '">' +
         '<img class="panda ' + (sizeClass[i] || '') + '" src="' + ((def && def.image) || IMG) + '" alt="パンダさん"></span>';
     });
     el.caravanEl.innerHTML = html;
@@ -2690,6 +2823,7 @@
   // 現在地にミニキャラバン、ボス撃破済みエリアの空に笑顔雲、区間ごとにあしあと（クリア済みだけ）。
   function renderEmaki() {
     if (!el.emakiRoad) return;
+    const wagonLv = wagonLevel();
     let html = '';
     TOWNS.forEach(function (t, i) {
       const cleared = i < state.townIndex || (i === state.townIndex && state.finalMessageShown);
@@ -2701,7 +2835,7 @@
 
       html += '<div class="emaki-node" data-town="' + i + '">';
       if (hasSmile) html += '<div class="emaki-smile" title="おおもやもやを笑顔にした証"></div>';
-      if (isCurrent) html += '<div class="emaki-current-marker"><img src="assets/scene/wagon.png" alt="いまここ"></div>';
+      if (isCurrent) html += '<div class="emaki-current-marker">' + wagonDecorHtml(wagonLv) + '<img src="assets/scene/wagon.png" alt="いまここ" class="' + (wagonLv >= 4 ? 'wagon-glow' : '') + '"></div>';
       html += '<img class="emaki-house ' + (cleared || isCurrent ? 'current' : 'unk') + (cleared ? ' cleared' : '') + '" src="assets/scene/house.png" alt="">';
       if (cleared) html += '<span class="emaki-lantern">🏮</span>';
       html += '<div class="emaki-label">' + (reached ? t.name : '❓') + '</div>';
@@ -2874,6 +3008,7 @@
   function finishBossBattle(won, clearedPct) {
     if (bossTickTimer) { clearInterval(bossTickTimer); bossTickTimer = null; }
     const area = runtime.boss.area;
+    const beforeWagonLv = wagonLevel();
     runtime.boss.active = false;
     BgmEngine.exitBossMode();
     el.bossBattleView.style.display = 'none';
@@ -2905,6 +3040,7 @@
       el.bossHintText.style.display = '';
       el.bossResultRewards.innerHTML = '';
     }
+    checkWagonLevelUp(beforeWagonLv);
     saveState();
     renderHeader();
     renderGachaPanel();
@@ -2985,6 +3121,45 @@
     updateShareLink();
   }
 
+  /* ============================================================
+   * Xシェア共通処理：スマホはXアプリのDeep Link優先→アプリが無ければweb版にフォールバック
+   * （旅タブのシェアボタン・スナップのシェアfallbackの両方がここを通る）
+   * ============================================================ */
+  function isMobileUA() { return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent); }
+  // 実際のtwitter:// への遷移だけ差し替えできるようにする（Playwright等の外部検証がlocation.hrefを実際に書き換えずに
+  // 「呼ばれたURL」を記録できるようにするためのインダイレクション。本番はデフォルトのままlocation.hrefに遷移する）
+  let navigateToXAppUrl = function (u) { location.href = u; };
+  function openXWebIntent(text, gameUrl) {
+    window.open('https://x.com/intent/post?text=' + encodeURIComponent(text) + '&url=' + encodeURIComponent(gameUrl), '_blank');
+  }
+  function shareToX(text, gameUrl) {
+    if (!isMobileUA()) { openXWebIntent(text, gameUrl); return; }
+
+    let fallbackTimer = null;
+    function onHide() { cancelFallback(); }
+    function cancelFallback() {
+      if (fallbackTimer) { clearTimeout(fallbackTimer); fallbackTimer = null; }
+      document.removeEventListener('visibilitychange', onHide);
+      window.removeEventListener('pagehide', onHide);
+      window.removeEventListener('blur', onHide);
+    }
+    document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('pagehide', onHide);
+    window.addEventListener('blur', onHide);
+
+    fallbackTimer = setTimeout(function () {
+      fallbackTimer = null;
+      // アプリが起動していれば通常ここに来る前にblur/pagehide/visibilitychangeでキャンセルされている。
+      // まだ見えている＝アプリが無かったとみなしてweb版にフォールバックする
+      if (document.visibilityState === 'visible') openXWebIntent(text, gameUrl);
+      document.removeEventListener('visibilitychange', onHide);
+      window.removeEventListener('pagehide', onHide);
+      window.removeEventListener('blur', onHide);
+    }, 1200);
+
+    navigateToXAppUrl('twitter://post?message=' + encodeURIComponent(text + '\n' + gameUrl));
+  }
+
   // ── Xシェア（旅タブ）：本文はセーブから動的生成。リンクはタップ時ではなく描画のたびに最新化しておく ──
   function currentTownNameForShare() {
     if (state.finalMessageShown) return TOWNS[TOWNS.length - 1].name;
@@ -3001,6 +3176,7 @@
   function updateShareLink() {
     if (!el.xShareBtn) return;
     const gameUrl = 'https://fuyutosan.github.io/sasatomo-caravan/';
+    // hrefはJS無効時やmiddle-click等のフォールバック用にweb intentのまま残す。実際のクリックはbindUIEventsのハンドラがshareToX経由に差し替える
     el.xShareBtn.href = 'https://x.com/intent/post?text=' + encodeURIComponent(buildShareText()) + '&url=' + encodeURIComponent(gameUrl);
   }
 
@@ -3286,7 +3462,11 @@
   /* ============================================================
    * メインループ（旅シーン：もやもや雲の出現→浄化）
    * ============================================================ */
-  const runtime = { cloudState: 'idle', nextSpawnAt: 0, purifyEndAt: 0, boss: null };
+  const runtime = {
+    cloudState: 'idle', nextSpawnAt: 0, purifyEndAt: 0, boss: null,
+    camp: { active: false, endAt: 0, nextAt: 0 },   // 夜キャンプ（展望アイデア帳.md⑥）
+    chatter: { nextAt: 0 },                          // なかまのおしゃべり（展望アイデア帳.md⑦）
+  };
 
   function spawnCloud() {
     runtime.cloudState = 'active';
@@ -3327,6 +3507,96 @@
     } else if (runtime.cloudState === 'active') {
       if (now >= runtime.purifyEndAt) resolveCloud();
     }
+    updateCamp();
+    updateChatter();
+  }
+
+  /* ============================================================
+   * 夜キャンプ（展望アイデア帳.md⑥）
+   * 見た目だけの休憩演出。もやもや雲の出現/浄化ロジック（spawnCloud/resolveCloud）は一切変更しないので、
+   * 収入・進行のレートはキャンプ中もそのまま＝「休んでても大丈夫だよ」。キャンプ中はCSSで雲を非表示にするだけ。
+   * ============================================================ */
+  function startCamp() {
+    runtime.camp.active = true;
+    runtime.camp.endAt = Date.now() + BALANCE.campDurationMs;
+    el.sceneEl.classList.add('camping');
+    el.campfireEl.style.display = 'block'; // CSS既定はdisplay:noneなので、空文字ではなく明示的にblockへ
+    showToast('今夜は ここで ひとやすみ');
+  }
+  function endCamp() {
+    runtime.camp.active = false;
+    runtime.camp.nextAt = Date.now() + BALANCE.campIntervalMs;
+    el.sceneEl.classList.remove('camping');
+    el.campfireEl.style.display = 'none';
+    showToast('さあ、また あるこう');
+  }
+  function updateCamp() {
+    const now = Date.now();
+    const isNight = getCurrentBand() === 'night';
+    if (!isNight) {
+      if (runtime.camp.active) endCamp();
+      runtime.camp.nextAt = 0; // 夜以外の間はスケジュールしない→次に夜になってから10分後に最初のキャンプ
+      return;
+    }
+    if (runtime.camp.active) {
+      if (now >= runtime.camp.endAt) endCamp();
+      return;
+    }
+    if (runtime.camp.nextAt === 0) { runtime.camp.nextAt = now + BALANCE.campIntervalMs; return; }
+    if (now >= runtime.camp.nextAt) startCamp();
+  }
+
+  /* ============================================================
+   * なかまのおしゃべり（展望アイデア帳.md⑦）
+   * ============================================================ */
+  let chatBubbleTimer = null;
+  function showChatBubble(id, text) {
+    const wrap = el.caravanEl.querySelector('[data-char-id="' + id + '"]');
+    if (!wrap || !el.chatBubbleEl || !el.sceneEl) return;
+    const sceneRect = el.sceneEl.getBoundingClientRect();
+    const wrapRect = wrap.getBoundingClientRect();
+    const x = wrapRect.left + wrapRect.width / 2 - sceneRect.left;
+    const y = wrapRect.top - sceneRect.top;
+    el.chatBubbleEl.textContent = text;
+    el.chatBubbleEl.style.left = x + 'px';
+    el.chatBubbleEl.style.top = y + 'px';
+    el.chatBubbleEl.style.display = 'block'; // CSS既定はdisplay:noneなので、空文字ではなく明示的にblockへ
+    void el.chatBubbleEl.offsetWidth; // 強制リフロー：直前にdisplay:noneだった場合もopacityのtransitionが確実に効くように
+    el.chatBubbleEl.classList.add('show');
+    if (chatBubbleTimer) clearTimeout(chatBubbleTimer);
+    chatBubbleTimer = setTimeout(function () {
+      el.chatBubbleEl.classList.remove('show');
+      setTimeout(function () { el.chatBubbleEl.style.display = 'none'; }, 320);
+    }, 4000);
+  }
+  // 編成中から1人を抽選（得意な時間帯が今の帯と一致する子は少し出やすい＝重み2倍）
+  function pickChatterMember() {
+    const members = state.party.filter(Boolean);
+    if (members.length === 0) return null;
+    const band = getCurrentBand();
+    const weights = members.map(function (id) {
+      const def = CHAR_MAP[id];
+      return (def && def.preferredBand === band) ? 2 : 1;
+    });
+    const total = weights.reduce(function (a, b) { return a + b; }, 0);
+    let r = Math.random() * total;
+    for (let i = 0; i < members.length; i++) {
+      r -= weights[i];
+      if (r <= 0) return members[i];
+    }
+    return members[members.length - 1];
+  }
+  function pickChatterLine(id) {
+    if (runtime.camp.active) return pickRandom(CAMP_LINES);
+    const own = CHAR_LINES[id] || [];
+    return pickRandom(own.concat(COMMON_LINES));
+  }
+  function updateChatter() {
+    const now = Date.now();
+    if (now < runtime.chatter.nextAt) return;
+    const id = pickChatterMember();
+    if (id) showChatBubble(id, pickChatterLine(id));
+    runtime.chatter.nextAt = now + rand(BALANCE.chatterMinMs, BALANCE.chatterMaxMs);
   }
 
   /* ============================================================
@@ -3456,6 +3726,13 @@
     el.cloudConnectBtn.addEventListener('click', handleCloudConnect);
     el.cloudDisconnectBtn.addEventListener('click', handleCloudDisconnect);
 
+    // hrefはフォールバック用に残しつつ、クリック自体はshareToX（アプリ優先→web版フォールバック）に差し替える
+    el.xShareBtn.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      const gameUrl = 'https://fuyutosan.github.io/sasatomo-caravan/';
+      shareToX(buildShareText(), gameUrl);
+    });
+
     el.bgmToggleBtn.addEventListener('click', function () {
       const nowOn = BgmEngine.toggle();
       el.bgmToggleBtn.classList.toggle('on', nowOn);
@@ -3509,6 +3786,7 @@
     if (report) showReportCard(report); else el.reportCard.style.display = 'none';
 
     runtime.nextSpawnAt = now + rand(BALANCE.firstCloudMin, BALANCE.firstCloudMax);
+    runtime.chatter.nextAt = now + rand(5000, 15000); // 起動直後は少し早めに1回目のおしゃべりが見られるように
     setInterval(tick, 150);
     setInterval(function () {
       if (state.clearedTowns > 0) {
@@ -3576,6 +3854,27 @@
     openSnapDetail: openSnapDetail,
     closeSnapDetail: closeSnapDetail,
     SNAP_MAX: SNAP_MAX,
+    wagonLevel: wagonLevel,
+    bossWinCount: bossWinCount,
+    checkWagonLevelUp: checkWagonLevelUp,
+    renderScene: renderScene,
+    renderEmaki: renderEmaki,
+    startCamp: startCamp,
+    endCamp: endCamp,
+    updateCamp: updateCamp,
+    updateChatter: updateChatter,
+    pickChatterMember: pickChatterMember,
+    pickChatterLine: pickChatterLine,
+    showChatBubble: showChatBubble,
+    CHAR_LINES: CHAR_LINES,
+    COMMON_LINES: COMMON_LINES,
+    CAMP_LINES: CAMP_LINES,
+    tick: tick,
+    shareToX: shareToX,
+    isMobileUA: isMobileUA,
+    openXWebIntent: openXWebIntent,
+    setNavigateToXAppUrl: function (fn) { navigateToXAppUrl = fn; },
+    resetNavigateToXAppUrl: function () { navigateToXAppUrl = function (u) { location.href = u; }; },
   };
 
   window.addEventListener('DOMContentLoaded', function () { init(); });
