@@ -97,6 +97,10 @@
     padding: 8px 12px; background: #e9f5e5; border-bottom: 3px solid #cfe3c8;
     font-size: 13px;
   }
+  .journey-badge {
+    display: inline-block; margin-left: 6px; font-size: 10px; color: #7a3fd0;
+    background: #f0e6ff; border: 1px solid #c9a8ff; border-radius: 8px; padding: 1px 6px; vertical-align: middle;
+  }
   .town .bar {
     margin-top: 5px; height: 14px; background: #cdd6cc;
     border: 2px solid var(--dark); position: relative;
@@ -419,6 +423,16 @@
 
   .towns { list-style: none; font-size: 13px; line-height: 2.1; }
 
+  /* ── 転生「あたらしい旅路」（企画書.md§4-6） ── */
+  .journey-card {
+    border-color: #7a3fd0; box-shadow: 4px 4px 0 rgba(122, 63, 208, .3);
+    background: linear-gradient(160deg, #fff, #f6efff);
+  }
+  .journey-card h2 { color: #7a3fd0; }
+  .journey-hint { font-size: 11px; color: #6b6b78; margin-top: 6px; line-height: 1.7; }
+  .btn.journey-btn { background: #7a3fd0; border-color: #4a2080; box-shadow: 0 4px 0 #4a2080; margin-top: 10px; }
+  .btn.journey-btn:active { box-shadow: 0 1px 0 #4a2080; }
+
   /* ── 絵巻マップ（旅の絵巻・地図タブの主役） ── */
   .emaki-card { overflow: hidden; }
   .emaki-scroll {
@@ -648,6 +662,7 @@
 
   <div class="town" id="townBar">
     <span id="townText">…</span>
+    <span id="journeyBadge" class="journey-badge" style="display:none;"></span>
     <div class="bar"><div class="fill" id="townFill"></div><span class="pct" id="townPct"></span></div>
   </div>
 
@@ -775,6 +790,13 @@
           <div class="emaki-road" id="emakiRoad"></div>
         </div>
         <p class="emaki-hint">町をタップすると、その町の思い出が見られるよ</p>
+      </section>
+
+      <section class="card journey-card" id="journeyCard" style="display:none;">
+        <h2>🌈 あたらしい旅路へ</h2>
+        <p>世界をひとまわりしたよ！あたらしい旅路では 町の元気が もっと必要になるけど、キャラバンは もっと強くなる。</p>
+        <p class="journey-hint">旅の証（日記・スナップ・思い出・笑顔雲）はぜんぶそのまま。なかま・装備・持ち物・笹・パンダさんパワーも引き継ぐよ。</p>
+        <button class="btn journey-btn" id="journeyBtn">🌈 あたらしい旅路へ出発する</button>
       </section>
 
       <section class="card boss-card" id="bossCard" style="display:none;">
@@ -993,6 +1015,9 @@
     // ── なかまのおしゃべり（展望アイデア帳.md⑦） ──
     chatterMinMs: 20000,
     chatterMaxMs: 40000,
+    // ── 転生「あたらしい旅路」（企画書.md§4-6・Trimps方式の恒久ボーナス） ──
+    journeyRequirementMult: 2.2,     // 周回(journeyCount)ごとに町の必要浄化量・ボスHPが×2.2
+    journeyIncomeBonusPerLevel: 0.10, // 周回+1ごとに全収入(笹・パンダさんパワー)+10%（累積）
   };
 
   const SAVE_KEY = 'sasatomo-caravan-v1';
@@ -1621,12 +1646,14 @@
       lastSeen: now,
       totalCloudsCleared: 0,
       omukaePt: 0,
-      bossWon: {},       // { エリア番号: true } おおもやもや戦の勝利記録（笑顔雲として空にずっと表示）
+      bossWon: {},       // { エリア番号: true } 今の旅路での勝利記録（再挑戦可否の判定用。転生でリセットされる）
+      bossEverWon: {},   // { エリア番号: true } 過去いちどでも勝った記録（永続・転生でも消えない。笑顔雲の表示はこちらを見る＝旅の証）
       goldenLetters: 0,  // 金の手紙💌の所持数
       journal: [{ date: todayDateLabel(), text: '旅がはじまった' }], // キャラバン旅日記（自動年表・最大200件）
       memories: {},      // { キャラid: { days, clouds } } なかまの思い出メモリー
       lastMemoryCheckDate: null, // 日付が変わったらdays+1する判定用（null=まだ未チェック→起動時に必ず1回加算される）
       snaps: [],         // 旅のスナップ（記念アルバム・レシピのみ保存。最大60件・古い順自動削除）
+      journeyCount: 1,   // 転生（あたらしい旅路）の周回数。企画書.md§4-6・Trimps方式の恒久ボーナス
     };
   }
   let state = null;
@@ -1705,6 +1732,7 @@
   function snapHeadline(recipe) {
     if (recipe.type === 'boss') return recipe.name + 'の おおもやもやが 笑顔になった！';
     if (recipe.type === 'newchar') return recipe.name + 'が なかまになった！';
+    if (recipe.type === 'journey') return '🌈 ' + recipe.name + 'が はじまった！';
     return recipe.name + 'を 元気にした！'; // type === 'town'（既定）
   }
 
@@ -2179,6 +2207,7 @@
       memberCount: members.length, hasMoonwalk: state.party.indexOf('moonwalk') !== -1,
       hasHanamaru: hasHanamaru, hasNagareboshi: hasNagareboshi, offlineTimeMult: offlineTimeMult,
       band: band, hour: hour,
+      journeyMult: journeyIncomeMult(), // 旅路ボーナス(a)：周回+1ごとに全収入+10%（累積）。獲得量の計算にだけ使う＝浄化にかかる時間(purifyMult自体)は変えない
     };
   }
 
@@ -2281,17 +2310,56 @@
   }
 
   /* ============================================================
+   * 転生「あたらしい旅路」（企画書.md§4-6・Trimps方式の恒久ボーナス）
+   * 「旅の証（日記・スナップ・思い出・笑顔雲）は絶対に消さない。リセットは『道』だけ」
+   * ============================================================ */
+  function journeyScaleMult() {
+    return Math.pow(BALANCE.journeyRequirementMult, (state.journeyCount || 1) - 1);
+  }
+  function journeyIncomeMult() {
+    return 1 + ((state.journeyCount || 1) - 1) * BALANCE.journeyIncomeBonusPerLevel;
+  }
+  // 町の必要浄化量（journeyCountぶん×2.2）。TOWNS配列そのものは変更しない＝周回ごとに毎回計算するだけ
+  function townRequirement(i) {
+    return Math.round(TOWNS[i].requirement * journeyScaleMult());
+  }
+  // 解放条件：8町すべてクリア＋今の旅路でおおもやもや3勝（wagonLevel Lv4と同じ判定基準）
+  function canRebirth() {
+    return !!state.finalMessageShown && bossWinCount() >= 3;
+  }
+  function startRebirth() {
+    if (!canRebirth()) return;
+    const ok = window.confirm('世界をひとまわりしたよ！あたらしい旅路では 町の元気が もっと必要になるけど、キャラバンは もっと強くなる。あたらしい旅路へ出発する？');
+    if (!ok) return;
+    state.journeyCount = (state.journeyCount || 1) + 1;
+    // リセットされるもの：町の進行・今の旅路でのボス勝利状況（再挑戦可能に）
+    state.townIndex = 0;
+    state.gauge = 0;
+    state.clearedTowns = 0;
+    state.finalMessageShown = false;
+    state.bossWon = {};
+    // 維持されるもの：なかま・覚醒・装備・持ち物・笹・パンダさんパワー・おむかえpt・金の手紙・日記・スナップ・思い出・笑顔雲(bossEverWon)は
+    // ここで一切触らない＝そのまま残る
+    state.ticket = (state.ticket || 0) + 1; // 旅路ボーナス(b)：おさそいの手紙+1枚
+    captureSnap('journey', { name: state.journeyCount + '周目の旅' });
+    addJournalEntry('🌈 あたらしい旅路がはじまった（' + state.journeyCount + '周目）');
+    showToast('🌈 あたらしい旅路が はじまったよ！（' + state.journeyCount + '周目）'); // captureSnapの汎用トーストを上書きして最終表示させる
+    saveState();
+    renderAll();
+  }
+
+  /* ============================================================
    * 町・浄化の進行
    * ============================================================ */
   function advanceTownGauge(n) {
     const beforeWagonLv = wagonLevel();
     state.gauge += n;
     state.totalCloudsCleared += n;
-    while (state.townIndex < TOWNS.length && state.gauge >= TOWNS[state.townIndex].requirement) {
+    while (state.townIndex < TOWNS.length && state.gauge >= townRequirement(state.townIndex)) {
       state.clearedTowns++;
       const clearedName = TOWNS[state.townIndex].name;
       if (state.townIndex < TOWNS.length - 1) {
-        state.gauge -= TOWNS[state.townIndex].requirement;
+        state.gauge -= townRequirement(state.townIndex);
         state.townIndex++;
         showToast('🎉 ' + clearedName + ' クリア！つぎの町へ出発だよ');
         addJournalEntry(clearedName + 'を元気にした');
@@ -2368,10 +2436,11 @@
     const avgPurify = Math.max(BALANCE.cloudBaseTimeMin, BALANCE.cloudBaseTime / stats.purifyMult);
     const cycle = avgInterval + avgPurify;
     const clouds = Math.max(0, Math.floor(durationMs / cycle));
+    const journeyMult = stats.journeyMult || 1; // 旅路ボーナス(a)：獲得量にだけかける（浄化にかかる時間＝avgPurifyには影響させない）
     let sasaGain = 0, powerGain = 0;
     for (let i = 0; i < clouds; i++) {
-      sasaGain += Math.round(rand(BALANCE.sasaRewardMin, BALANCE.sasaRewardMax) * stats.sasaMult);
-      powerGain += Math.round(rand(BALANCE.powerRewardMin, BALANCE.powerRewardMax) * stats.purifyMult);
+      sasaGain += Math.round(rand(BALANCE.sasaRewardMin, BALANCE.sasaRewardMax) * stats.sasaMult * journeyMult);
+      powerGain += Math.round(rand(BALANCE.powerRewardMin, BALANCE.powerRewardMax) * stats.purifyMult * journeyMult);
     }
     return { clouds: clouds, sasaGain: sasaGain, powerGain: powerGain };
   }
@@ -2490,7 +2559,8 @@
      'bossMoyamoyaEl', 'bossHpFill', 'bossHpText', 'bossTimerText', 'bossSmileForceText',
      'bossResultTitle', 'bossResultText', 'bossHintText', 'bossResultRewards', 'bossCloseBtn',
      'snapCard', 'snapGrid', 'snapOverlay', 'snapDetailBody', 'snapSaveBtn', 'snapShareBtn', 'snapCloseBtn',
-     'chatBubbleEl', 'campfireEl'
+     'chatBubbleEl', 'campfireEl',
+     'journeyBadge', 'journeyCard', 'journeyBtn'
     ].forEach(function (id) { el[id] = q(id); });
   }
 
@@ -2510,9 +2580,16 @@
     } else {
       const t = TOWNS[state.townIndex];
       el.townText.textContent = '🗾 ' + (state.townIndex + 1) + 'ばんめの町「' + t.name + '」まで あと少し…';
-      const pct = Math.min(100, Math.round((state.gauge / t.requirement) * 100));
+      const pct = Math.min(100, Math.round((state.gauge / townRequirement(state.townIndex)) * 100));
       el.townFill.style.width = pct + '%';
       el.townPct.textContent = 'パンダさんパワー ' + pct + '%';
+    }
+    // 旅路ボーナス(c)：2周目以降だけ小さく「◯周目の旅」を表示（1周目はふつうに遊べるので出さない）
+    if ((state.journeyCount || 1) >= 2 && el.journeyBadge) {
+      el.journeyBadge.textContent = '🌈 ' + state.journeyCount + '周目の旅';
+      el.journeyBadge.style.display = '';
+    } else if (el.journeyBadge) {
+      el.journeyBadge.style.display = 'none';
     }
   }
 
@@ -2810,6 +2887,13 @@
     renderJournal();
     renderBossAreas();
     renderSnapAlbum();
+    renderJourneyCard();
+  }
+
+  // 転生カードの表示切り替え（解放条件を満たしたときだけ地図タブ・絵巻の下に出す）
+  function renderJourneyCard() {
+    if (!el.journeyCard) return;
+    el.journeyCard.style.display = canRebirth() ? '' : 'none';
   }
 
   // その町を「元気にした」journal行の日付を探す（＝はじめて来た日のかわりに使う近似値）
@@ -2831,7 +2915,7 @@
       const reached = i <= state.townIndex;
       let area = null;
       BALANCE.bossUnlockTownCounts.forEach(function (cnt, aIdx) { if (cnt - 1 === i) area = aIdx + 1; });
-      const hasSmile = area && state.bossWon && state.bossWon[area];
+      const hasSmile = area && state.bossEverWon && state.bossEverWon[area]; // 永続の証（転生でも消えない）
 
       html += '<div class="emaki-node" data-town="' + i + '">';
       if (hasSmile) html += '<div class="emaki-smile" title="おおもやもやを笑顔にした証"></div>';
@@ -2864,7 +2948,7 @@
     let html = '';
     if (reached) {
       const firstDate = findJournalDateForTown(t.name);
-      const clouds = cleared ? t.requirement : (current ? state.gauge : 0);
+      const clouds = cleared ? townRequirement(i) : (current ? state.gauge : 0);
       html += '<div style="padding:8px 4px;font-size:13px;line-height:2;">' +
         (firstDate ? '🗓️ はじめて来た日：' + firstDate + '<br>' : (current ? '🚶 いま向かっているよ<br>' : '')) +
         '🎁 特産品：' + t.specialty + '<br>' +
@@ -2903,7 +2987,7 @@
     return (TOWNS[idx] && TOWNS[idx].name) || '';
   }
   function bossHpForArea(area) {
-    return Math.round(BALANCE.bossHpBase * Math.pow(BALANCE.bossHpGrowth, area - 1));
+    return Math.round(BALANCE.bossHpBase * Math.pow(BALANCE.bossHpGrowth, area - 1) * journeyScaleMult());
   }
   function bossDamageForElapsed(purifyMult, elapsedMs) {
     return BALANCE.bossDpsPerPurifyMult * purifyMult * (elapsedMs / 1000);
@@ -2956,7 +3040,7 @@
     let html = '';
     BALANCE.bossUnlockTownCounts.forEach(function (_, idx) {
       const area = idx + 1;
-      if (state.bossWon && state.bossWon[area]) {
+      if (state.bossEverWon && state.bossEverWon[area]) { // 永続の証（転生でも消えない）
         const leftPct = 8 + idx * 30;
         html += '<div class="smile-cloud" style="left:' + leftPct + '%;" title="' + bossAreaTownName(area) + 'で おおもやもやを 笑顔にした証">' +
           '<span class="smile-badge">😊</span></div>';
@@ -3016,6 +3100,8 @@
     if (won) {
       if (!state.bossWon) state.bossWon = {};
       state.bossWon[area] = true;
+      if (!state.bossEverWon) state.bossEverWon = {};
+      state.bossEverWon[area] = true; // 永続の証（転生しても消えない。見た目はここが変わらないだけで勝利記録は更新される）
       state.goldenLetters = (state.goldenLetters || 0) + 1;
       const rewardLines = ['💌 金の手紙を 1つ もらったよ！'];
       if (Math.random() < 0.5) {
@@ -3047,6 +3133,7 @@
     renderEquipPanel();
     renderBossAreas();
     renderSmileClouds();
+    renderJourneyCard(); // 3勝目のこの瞬間にcanRebirth()がtrueになりうるので、地図タブへ移動しなくても即座にカードが出るようにする
   }
 
   function renderZukan() {
@@ -3480,8 +3567,8 @@
 
   function resolveCloud() {
     const stats = computeStats();
-    const sasaGain = Math.round(rand(BALANCE.sasaRewardMin, BALANCE.sasaRewardMax) * stats.sasaMult);
-    const powerGain = Math.round(rand(BALANCE.powerRewardMin, BALANCE.powerRewardMax) * stats.purifyMult);
+    const sasaGain = Math.round(rand(BALANCE.sasaRewardMin, BALANCE.sasaRewardMax) * stats.sasaMult * stats.journeyMult);
+    const powerGain = Math.round(rand(BALANCE.powerRewardMin, BALANCE.powerRewardMax) * stats.purifyMult * stats.journeyMult);
     state.sasa += sasaGain;
     state.pandaPower += powerGain;
     showPop('+' + powerGain + ' パンダさんパワー!');
@@ -3690,6 +3777,8 @@
       renderJournal();
     });
 
+    el.journeyBtn.addEventListener('click', startRebirth);
+
     el.snapGrid.addEventListener('click', function (ev) {
       const wrap = ev.target.closest('[data-id]');
       if (!wrap) return;
@@ -3754,6 +3843,9 @@
     renderCloudIcon();
     state = loadState() || defaultState();
     const needsJournalMigration = (state.journal === undefined); // 旅日記が無い旧セーブ＝マイグレーション対象
+    // 転生機能追加前のセーブ互換：bossEverWon（永続の勝利証）が無ければ、今までのbossWonをそのまま引き継ぐ
+    // （汎用補完だと空{}になってしまい、既に勝っていたはずの笑顔雲が消えて見えてしまうため）
+    if (state.bossEverWon === undefined) state.bossEverWon = Object.assign({}, state.bossWon || {});
     // 欠けているキーの補完（旧セーブ互換）
     const d = defaultState();
     Object.keys(d).forEach(function (k) { if (state[k] === undefined) state[k] = d[k]; });
@@ -3790,7 +3882,7 @@
     setInterval(tick, 150);
     setInterval(function () {
       if (state.clearedTowns > 0) {
-        state.sasa += state.clearedTowns * BALANCE.friendTownIncomePerTown;
+        state.sasa += Math.round(state.clearedTowns * BALANCE.friendTownIncomePerTown * journeyIncomeMult());
         renderHeader();
         saveState();
       }
@@ -3875,6 +3967,16 @@
     openXWebIntent: openXWebIntent,
     setNavigateToXAppUrl: function (fn) { navigateToXAppUrl = fn; },
     resetNavigateToXAppUrl: function () { navigateToXAppUrl = function (u) { location.href = u; }; },
+    journeyScaleMult: journeyScaleMult,
+    journeyIncomeMult: journeyIncomeMult,
+    townRequirement: townRequirement,
+    canRebirth: canRebirth,
+    startRebirth: startRebirth,
+    renderJourneyCard: renderJourneyCard,
+    resolveCloud: resolveCloud,
+    calcSegmentRewards: calcSegmentRewards,
+    renderBossAreas: renderBossAreas,
+    bossHpForArea: bossHpForArea,
   };
 
   window.addEventListener('DOMContentLoaded', function () { init(); });
