@@ -578,6 +578,15 @@
     display: flex; align-items: center; justify-content: center; cursor: zoom-out; padding: 20px;
   }
   .char-zoom-overlay img { max-width: 90%; max-height: 90%; image-rendering: pixelated; }
+
+  /* ── 旅のスナップ（記念アルバム） ── */
+  .snap-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .snap-thumb { border: 2px solid var(--dark); cursor: pointer; overflow: hidden; background: #1a1a22; line-height: 0; }
+  .snap-thumb canvas { width: 100%; height: auto; display: block; }
+  .snap-empty { font-size: 12px; color: #999; grid-column: 1 / -1; }
+  .snap-modal { max-width: 380px; text-align: center; }
+  #snapDetailBody canvas { width: 100%; height: auto; display: block; border: 2px solid var(--dark); }
+  .snap-modal .btn { margin-top: 8px; }
 </style>
 </head>
 <body>
@@ -729,6 +738,11 @@
         <button class="btn" id="journalMoreBtn" style="display:none;">もっとみる</button>
       </section>
 
+      <section class="card snap-card" id="snapCard">
+        <h2>📸 旅のスナップ</h2>
+        <div class="snap-grid" id="snapGrid"></div>
+      </section>
+
       <section class="card save-card" id="cloudCard">
         <h2>☁️ クラウドセーブ</h2>
         <div id="cloudDisconnectedBox">
@@ -828,6 +842,16 @@
 <!-- キャラ画像フルスクリーン拡大 -->
 <div class="char-zoom-overlay" id="charZoomOverlay" style="display:none;">
   <img id="charZoomImg" src="" alt="">
+</div>
+
+<!-- スナップ拡大モーダル（旅のスナップ） -->
+<div class="modal-overlay" id="snapOverlay" style="display:none;">
+  <div class="modal-box snap-modal">
+    <div id="snapDetailBody"></div>
+    <button class="btn" id="snapSaveBtn">📥 ほぞん</button>
+    <button class="btn share" id="snapShareBtn">🐦 シェア</button>
+    <button class="btn modal-close" id="snapCloseBtn">とじる</button>
+  </div>
 </div>
 
 <!-- おおもやもや戦モーダル -->
@@ -1507,6 +1531,7 @@
       journal: [{ date: todayDateLabel(), text: '旅がはじまった' }], // キャラバン旅日記（自動年表・最大200件）
       memories: {},      // { キャラid: { days, clouds } } なかまの思い出メモリー
       lastMemoryCheckDate: null, // 日付が変わったらdays+1する判定用（null=まだ未チェック→起動時に必ず1回加算される）
+      snaps: [],         // 旅のスナップ（記念アルバム・レシピのみ保存。最大60件・古い順自動削除）
     };
   }
   let state = null;
@@ -1550,6 +1575,225 @@
   function bumpMemoriesForCloudsResolved(count) {
     if (!count) return;
     state.party.filter(Boolean).forEach(function (id) { ensureMemory(id).clouds += count; });
+  }
+
+  /* ============================================================
+   * 旅のスナップ（記念アルバム）
+   * 展望アイデア帳.md③準拠：localStorageには画像を保存しない。保存するのは「レシピ」
+   * （いつ・どの帯・どの編成で・なにが起きたか）だけにして、見るたびcanvasでその場から描き直す。
+   * ============================================================ */
+  const SNAP_MAX = 60;
+  const SNAP_W = 1200, SNAP_H = 630;
+  const SNAP_BAND_SKY = {
+    morning: ['#ffd9a0', '#ffb199', '#8ec6e6'],
+    day: ['#8fd3ff', '#cdeeff', '#eefff2'],
+    evening: ['#ff9a6b', '#c96b9a', '#382a5c'],
+    night: ['#12143a', '#242868', '#3c4088'],
+  };
+
+  // 節目（町クリア・おおもやもや戦勝利・SSR以上のなかまおむかえ）でレシピを記録する。最大60件・古い順自動削除
+  function captureSnap(type, extra) {
+    if (!state.snaps) state.snaps = [];
+    state.snaps.push({
+      id: uid(),
+      type: type,
+      date: todayDateLabel(),
+      band: getCurrentBand(),
+      partyIds: state.party.filter(Boolean),
+      name: extra.name,
+      rarity: extra.rarity || null,
+    });
+    while (state.snaps.length > SNAP_MAX) state.snaps.shift();
+    showToast('📸 スナップをのこしたよ');
+  }
+
+  function snapHeadline(recipe) {
+    if (recipe.type === 'boss') return recipe.name + 'の おおもやもやが 笑顔になった！';
+    if (recipe.type === 'newchar') return recipe.name + 'が なかまになった！';
+    return recipe.name + 'を 元気にした！'; // type === 'town'（既定）
+  }
+
+  const SNAP_IMG_CACHE = {};
+  function loadSnapImage(src) {
+    if (!SNAP_IMG_CACHE[src]) {
+      SNAP_IMG_CACHE[src] = new Promise(function (resolve) {
+        const img = new Image();
+        img.onload = function () { resolve(img); };
+        img.onerror = function () { resolve(null); };
+        img.src = src;
+      });
+    }
+    return SNAP_IMG_CACHE[src];
+  }
+
+  // 帯の空（グラデ）＋山＋地面＋幌馬車＋当時の編成＋見出し＋日付を1枚に合成する（w×hを渡せばサムネにも拡大表示にも使える純関数）
+  async function drawSnapScene(ctx, w, h, recipe) {
+    const s = w / SNAP_W;
+    ctx.imageSmoothingEnabled = false;
+
+    const colors = SNAP_BAND_SKY[recipe.band] || SNAP_BAND_SKY.day;
+    const grad = ctx.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, colors[0]);
+    grad.addColorStop(0.55, colors[1]);
+    grad.addColorStop(1, colors[2]);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+
+    try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch (e) { /* フォント待ちに失敗しても既定フォントで続行 */ }
+
+    const [mountains, ground, wagon] = await Promise.all([
+      loadSnapImage('assets/scene/mountains.png'),
+      loadSnapImage('assets/scene/ground.png'),
+      loadSnapImage('assets/scene/wagon.png'),
+    ]);
+
+    if (mountains && mountains.width) {
+      const mh = 260 * s;
+      const mw = mountains.width * (mh / mountains.height);
+      let x = -mw * 0.3;
+      while (x < w + mw) { ctx.drawImage(mountains, x, h - 340 * s, mw, mh); x += mw; }
+    }
+
+    const groundH = 130 * s;
+    if (ground && ground.width) {
+      const gw = ground.width * (groundH / ground.height);
+      let x = 0;
+      while (x < w) { ctx.drawImage(ground, x, h - groundH, gw, groundH); x += gw; }
+    } else {
+      ctx.fillStyle = '#6b4a2f';
+      ctx.fillRect(0, h - groundH, w, groundH);
+    }
+
+    if (wagon && wagon.width) {
+      const wh = 220 * s;
+      const ww = wagon.width * (wh / wagon.height);
+      ctx.drawImage(wagon, 90 * s, h - groundH - wh + 30 * s, ww, wh);
+    }
+
+    const partyImgs = await Promise.all((recipe.partyIds || []).slice(0, 4).map(function (id) {
+      const def = CHAR_MAP[id];
+      return def ? loadSnapImage(def.image || IMG) : Promise.resolve(null);
+    }));
+    let px = 380 * s;
+    partyImgs.forEach(function (img) {
+      if (!img || !img.width) { px += 130 * s; return; }
+      const ch = 150 * s;
+      const cw = img.width * (ch / img.height);
+      ctx.drawImage(img, px, h - groundH - ch + 20 * s, cw, ch);
+      px += cw + 30 * s;
+    });
+
+    const headline = snapHeadline(recipe);
+    ctx.textAlign = 'center';
+    ctx.font = 'bold ' + Math.round(46 * s) + "px 'DotGothic16', sans-serif";
+    ctx.lineWidth = Math.max(2, 8 * s);
+    ctx.strokeStyle = 'rgba(20,10,15,.75)';
+    ctx.strokeText(headline, w / 2, 90 * s);
+    ctx.fillStyle = '#fff';
+    ctx.fillText(headline, w / 2, 90 * s);
+
+    ctx.textAlign = 'left';
+    ctx.font = Math.round(20 * s) + "px 'DotGothic16', sans-serif";
+    ctx.fillStyle = 'rgba(255,255,255,.9)';
+    ctx.fillText(recipe.date, 24 * s, h - 20 * s);
+
+    ctx.textAlign = 'right';
+    ctx.font = Math.round(16 * s) + "px 'DotGothic16', sans-serif";
+    ctx.fillStyle = 'rgba(255,255,255,.85)';
+    ctx.fillText('🐼 笹友キャラバン', w - 20 * s, h - 16 * s);
+  }
+
+  async function renderSnapCanvas(recipe, w, h) {
+    w = w || SNAP_W; h = h || SNAP_H;
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    await drawSnapScene(canvas.getContext('2d'), w, h, recipe);
+    return canvas;
+  }
+
+  // アルバムのサムネイルグリッド（新しい順）。1件ずつ非同期に描画する（画像はキャッシュされるので2巡目以降は速い）
+  function renderSnapAlbum() {
+    if (!el.snapGrid) return;
+    const snaps = (state.snaps || []).slice().reverse();
+    if (snaps.length === 0) {
+      el.snapGrid.innerHTML = '<p class="snap-empty">まだスナップがないよ。町をクリアしたり、つよいなかまがなかまになると、自動でたまっていくよ。</p>';
+      return;
+    }
+    el.snapGrid.innerHTML = snaps.map(function (sn) {
+      return '<div class="snap-thumb" data-id="' + sn.id + '"><canvas></canvas></div>';
+    }).join('');
+    const THUMB_W = 280, THUMB_H = Math.round(280 * SNAP_H / SNAP_W);
+    Array.prototype.forEach.call(el.snapGrid.querySelectorAll('.snap-thumb'), function (wrap) {
+      const recipe = snaps.find(function (sn) { return sn.id === wrap.dataset.id; });
+      if (!recipe) return;
+      const canvasEl = wrap.querySelector('canvas');
+      canvasEl.width = THUMB_W; canvasEl.height = THUMB_H;
+      drawSnapScene(canvasEl.getContext('2d'), THUMB_W, THUMB_H, recipe);
+    });
+  }
+
+  let currentSnapRecipe = null;
+  let currentSnapCanvas = null;
+  async function openSnapDetail(id) {
+    const recipe = (state.snaps || []).find(function (sn) { return sn.id === id; });
+    if (!recipe) return;
+    currentSnapRecipe = recipe;
+    currentSnapCanvas = null;
+    el.snapDetailBody.innerHTML = '<p class="snap-empty">えがいてるよ…</p>';
+    el.snapOverlay.style.display = 'flex';
+    const canvas = await renderSnapCanvas(recipe, SNAP_W, SNAP_H);
+    if (!currentSnapRecipe || currentSnapRecipe.id !== id) return; // 描画中に閉じられていたら反映しない
+    el.snapDetailBody.innerHTML = '';
+    el.snapDetailBody.appendChild(canvas);
+    currentSnapCanvas = canvas;
+  }
+  function closeSnapDetail() {
+    el.snapOverlay.style.display = 'none';
+    el.snapDetailBody.innerHTML = '';
+    currentSnapRecipe = null;
+    currentSnapCanvas = null;
+  }
+  function downloadSnap() {
+    if (!currentSnapCanvas) return;
+    let dataUrl;
+    try { dataUrl = currentSnapCanvas.toDataURL('image/png'); } catch (e) { showToast('ほぞんできなかったよ…'); return; }
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = 'sasatomo-snap-' + (currentSnapRecipe ? currentSnapRecipe.id : Date.now()) + '.png';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+  // フォールバック（Web Share APIが使えない環境）：がぞうを自動ダウンロード＋Xポスト画面を新タブで開く
+  function shareSnapFallback(shareText, gameUrl) {
+    downloadSnap();
+    window.open('https://x.com/intent/post?text=' + encodeURIComponent(shareText) + '&url=' + encodeURIComponent(gameUrl), '_blank');
+    showToast('がぞうを ぽすとに そえてね');
+  }
+  async function shareSnap() {
+    if (!currentSnapCanvas || !currentSnapRecipe) return;
+    const headline = snapHeadline(currentSnapRecipe);
+    const shareText = '📸 ' + headline + '\n#笹友キャラバン';
+    const gameUrl = 'https://fuyutosan.github.io/sasatomo-caravan/';
+
+    // navigator.share/canShare が無い環境（PCブラウザなど）では、awaitを挟まず即フォールバックする。
+    // canvas.toBlob()のawaitをここより前に挟むと、クリックのユーザー操作が切れてwindow.openがブロックされてしまうため。
+    if (!navigator.share || !navigator.canShare) { shareSnapFallback(shareText, gameUrl); return; }
+
+    let blob = null;
+    try { blob = await new Promise(function (resolve) { currentSnapCanvas.toBlob(resolve, 'image/png'); }); } catch (e) { blob = null; }
+    if (blob) {
+      const file = new File([blob], 'sasatomo-snap.png', { type: 'image/png' });
+      if (navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], text: shareText });
+          return;
+        } catch (e) {
+          if (e && e.name === 'AbortError') return; // ユーザーがキャンセルしただけ→なにもしない
+        }
+      }
+    }
+    shareSnapFallback(shareText, gameUrl);
   }
 
   /* ============================================================
@@ -1922,12 +2166,14 @@
         state.townIndex++;
         showToast('🎉 ' + clearedName + ' クリア！つぎの町へ出発だよ');
         addJournalEntry(clearedName + 'を元気にした');
+        captureSnap('town', { name: clearedName });
         BgmEngine.playFanfare(); // BGM ONのときだけメインループの上に重ねて鳴る（OFF/未生成なら中で何もしない）
       } else {
         if (!state.finalMessageShown) {
           state.finalMessageShown = true;
           showToast('🎉 ' + TOWNS.length + 'つの町をまわりきったよ！ つづきはこれから！（おおもやもや戦をまっててね）');
           addJournalEntry(clearedName + 'を元気にした');
+          captureSnap('town', { name: clearedName });
           BgmEngine.playFanfare();
         }
         break;
@@ -2112,7 +2358,8 @@
      'sceneEl', 'skyLayerA', 'skyLayerB', 'starsEl', 'bandIconBtn', 'smileCloudsEl', 'morningGlowEl',
      'bossCard', 'bossAreaList', 'bossOverlay', 'bossBattleView', 'bossResultView',
      'bossMoyamoyaEl', 'bossHpFill', 'bossHpText', 'bossTimerText', 'bossSmileForceText',
-     'bossResultTitle', 'bossResultText', 'bossHintText', 'bossResultRewards', 'bossCloseBtn'
+     'bossResultTitle', 'bossResultText', 'bossHintText', 'bossResultRewards', 'bossCloseBtn',
+     'snapCard', 'snapGrid', 'snapOverlay', 'snapDetailBody', 'snapSaveBtn', 'snapShareBtn', 'snapCloseBtn'
     ].forEach(function (id) { el[id] = q(id); });
   }
 
@@ -2429,6 +2676,7 @@
     renderEmaki();
     renderJournal();
     renderBossAreas();
+    renderSnapAlbum();
   }
 
   // その町を「元気にした」journal行の日付を探す（＝はじめて来た日のかわりに使う近似値）
@@ -2648,6 +2896,7 @@
       el.bossResultRewards.innerHTML = rewardLines.map(function (t) { return '<li>' + t + '</li>'; }).join('');
       addJournalEntry('おおもやもやが笑顔になった（' + bossAreaTownName(area) + '）');
       addJournalEntry('金の手紙をもらった');
+      captureSnap('boss', { name: bossAreaTownName(area) });
       BgmEngine.playFanfare();
     } else {
       el.bossResultTitle.textContent = 'じかんぎれ…';
@@ -2800,6 +3049,7 @@
       state.owned[chosen.id] = { awaken: 0 };
       noteText = 'はじめまして！ なかまに くわわったよ。';
       addJournalEntry(chosen.name + 'がなかまになった');
+      if (chosen.rarity === 'SSR' || chosen.rarity === 'UR') captureSnap('newchar', { name: chosen.name, rarity: chosen.rarity });
     }
     return noteText;
   }
@@ -3170,6 +3420,16 @@
       renderJournal();
     });
 
+    el.snapGrid.addEventListener('click', function (ev) {
+      const wrap = ev.target.closest('[data-id]');
+      if (!wrap) return;
+      openSnapDetail(wrap.dataset.id);
+    });
+    el.snapCloseBtn.addEventListener('click', closeSnapDetail);
+    el.snapOverlay.addEventListener('click', function (ev) { if (ev.target === el.snapOverlay) closeSnapDetail(); });
+    el.snapSaveBtn.addEventListener('click', downloadSnap);
+    el.snapShareBtn.addEventListener('click', shareSnap);
+
     el.zukanGrid.addEventListener('click', function (ev) {
       const cellEl = ev.target.closest('[data-id]');
       if (!cellEl) return;
@@ -3308,6 +3568,14 @@
     advanceTownGauge: advanceTownGauge,
     openTownInfoPopup: openTownInfoPopup,
     findJournalDateForTown: findJournalDateForTown,
+    captureSnap: captureSnap,
+    renderSnapAlbum: renderSnapAlbum,
+    renderSnapCanvas: renderSnapCanvas,
+    drawSnapScene: drawSnapScene,
+    snapHeadline: snapHeadline,
+    openSnapDetail: openSnapDetail,
+    closeSnapDetail: closeSnapDetail,
+    SNAP_MAX: SNAP_MAX,
   };
 
   window.addEventListener('DOMContentLoaded', function () { init(); });
