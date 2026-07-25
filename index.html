@@ -476,7 +476,9 @@
   .btn.boss-challenge:active { box-shadow: 0 1px 0 #6e2b26; }
   .boss-cleared-row { font-size: 12px; color: #4a6b4f; background: #eef6ea; border: 2px solid #cfe3c8; padding: 8px; margin-bottom: 8px; }
   .boss-area-row { margin-bottom: 10px; }
-  .boss-progress-text { font-size: 11px; color: #6e2b26; margin: -4px 0 0; line-height: 1.6; }
+  .boss-challenge-note { font-size: 10px; color: #8a5a55; margin: -6px 0 6px; line-height: 1.5; }
+  .boss-progress-text { font-size: 11px; color: #6e2b26; margin: 0; line-height: 1.6; }
+  .boss-passive-note { font-size: 10px; color: #4a6b4f; margin: 0 0 2px; line-height: 1.5; }
   .boss-hint-note { font-size: 11px; color: #4a6b4f; margin-top: 2px; }
   .boss-modal { text-align: center; }
   .boss-scene {
@@ -3096,13 +3098,13 @@
   }
 
   // じわじわ討伐：経過時間ぶんだけ、まだ勝っていない全アンロック済みエリアのHPを一斉に削る。
-  // 「いますぐ挑戦」バトルが進行中のエリアはそちらのダメージ計算と二重取りにならないよう対象外にする。
+  // 「いますぐ挑戦」バトル（毎回フルHPからの60秒勝負・state.bossHpには一切触れない）とは完全に独立した軸なので、
+  // バトル中かどうかに関わらずここは常に進める（2026-07-25 仕様変更：削り持ち越しを廃止し2軸を完全独立させた）。
   // 戻り値：この呼び出しでHP0になった（笑顔になった）エリア番号の配列
   function applyBossPassiveDecay(purifyMult, elapsedMs) {
     if (!elapsedMs || elapsedMs <= 0) return [];
     const justWon = [];
     unlockedUnwonBossAreas().forEach(function (area) {
-      if (runtime.boss && runtime.boss.active && runtime.boss.area === area) return; // 挑戦バトル中は専用のダメージ計算に任せる
       const cur = currentBossHp(area);
       if (cur <= 0) return; // 既に0（勝利処理待ち）は再通知しない＝grantBossWinの多重呼び出し防止
       const dmg = bossPassiveDamageForElapsed(purifyMult, elapsedMs);
@@ -3201,7 +3203,9 @@
         html += '<div class="boss-area-row">' +
           '<button class="btn boss-challenge" data-area="' + area + '">🥊 いますぐ挑戦する（' + bossAreaTownName(area) + '）' +
           '<span class="boss-confidence">' + conf.icon + ' ' + conf.text + '</span></button>' +
-          '<p class="boss-progress-text">🌱 じわじわ：のこり ' + remainPct + '%（このままでも 約' + etaText + 'で 笑顔にできるよ）</p>' +
+          '<p class="boss-challenge-note">60びょうで たおせるか ためすよ（まけても へらないよ）</p>' +
+          '<p class="boss-progress-text">🌱 じわじわ：のこり ' + remainPct + '%（約' + etaText + 'で 笑顔にできるよ）</p>' +
+          '<p class="boss-passive-note">なにも しなくても すすむよ</p>' +
           '</div>';
       }
     }
@@ -3225,15 +3229,16 @@
   }
 
   let bossTickTimer = null;
+  // 「いますぐ挑戦」は毎回フルHPからの60秒勝負（2026-07-25 仕様変更：じわじわHPとは完全に独立。
+  // 負けてもstate.bossHpには一切書き込まない＝腕試しは何度でも気軽に挑める）
   function startBossBattle(area) {
     const maxHp = bossHpForArea(area);
-    const startHp = currentBossHp(area); // じわじわで削った分・前回の挑戦で削った分から続きを戦う
-    runtime.boss = { active: true, area: area, maxHp: maxHp, startHp: startHp, startedAt: Date.now(), timeLimitMs: BALANCE.bossBattleMs };
+    runtime.boss = { active: true, area: area, maxHp: maxHp, startedAt: Date.now(), timeLimitMs: BALANCE.bossBattleMs };
     el.bossResultView.style.display = 'none';
     el.bossBattleView.style.display = '';
     el.bossOverlay.style.display = 'flex';
     BgmEngine.enterBossMode();
-    renderBossProgress(startHp, maxHp, BALANCE.bossBattleMs);
+    renderBossProgress(maxHp, maxHp, BALANCE.bossBattleMs);
     el.bossSmileForceText.textContent = '😊 笑顔にする力 ' + smileForcePercent(computeStats()) + '%';
     if (bossTickTimer) clearInterval(bossTickTimer);
     bossTickTimer = setInterval(bossTick, 200);
@@ -3245,9 +3250,8 @@
     const elapsed = Date.now() - runtime.boss.startedAt;
     const stats = computeStats();
     const damage = bossDamageForElapsed(stats.purifyMult, elapsed);
-    const hp = Math.max(0, runtime.boss.startHp - damage);
-    if (!state.bossHp) state.bossHp = {};
-    state.bossHp[runtime.boss.area] = hp; // 削った分はその場で永続化する（時間切れでも消えない）
+    const hp = Math.max(0, runtime.boss.maxHp - damage);
+    // 【意図的にstate.bossHpへは書き込まない】じわじわの進捗はapplyBossPassiveDecayだけが変える（バトルの勝敗に影響されない）
     renderBossProgress(hp, runtime.boss.maxHp, Math.max(0, runtime.boss.timeLimitMs - elapsed));
     if (hp <= 0) { finishBossBattle(true, 100); return; }
     if (elapsed >= runtime.boss.timeLimitMs) {
@@ -3283,7 +3287,7 @@
       el.bossResultRewards.innerHTML = grant.rewardLines.map(function (t) { return '<li>' + t + '</li>'; }).join('');
     } else {
       el.bossResultTitle.textContent = 'じかんぎれ…';
-      el.bossResultText.textContent = (clearedPct || 0) + '%まで削れたよ。もやもやは にげないから、つよくなって また来てね';
+      el.bossResultText.textContent = 'いまの ちからだと ' + (clearedPct || 0) + '%までだったよ。じわじわは すすんでるから だいじょうぶ！';
       el.bossHintText.innerHTML = BOSS_HINT_TEXT;
       el.bossHintText.style.display = '';
       el.bossResultRewards.innerHTML = '';
