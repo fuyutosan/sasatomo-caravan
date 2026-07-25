@@ -656,6 +656,7 @@
   .char-detail-skill { font-size: 12px; color: #a67c00; background: #fff6df; border: 2px solid #ffb400; padding: 6px; margin-top: 8px; text-align: left; line-height: 1.6; }
   .char-detail-power { font-size: 13px; margin-top: 8px; }
   .char-detail-power b { color: var(--green); }
+  .char-detail-awaken-progress { font-size: 11px; color: #a67c00; margin-top: 4px; }
   .char-detail-memory { font-size: 12px; margin-top: 6px; color: #4a6b4f; background: #eef6ea; border: 2px solid #cfe3c8; padding: 6px; }
   .char-detail-flavor { font-size: 12px; margin-top: 8px; line-height: 1.7; text-align: left; color: #4a4a42; }
   .char-zoom-overlay {
@@ -798,7 +799,9 @@
           <span class="rc n">N 55%</span><span class="rc r">R 30%</span><span class="rc sr">SR 11%</span><span class="rc ssr">SSR 3.5%</span><span class="rc ur">UR 0.5%</span>
         </div>
         <div class="pity">
-          <p id="pityText">おむかえpt 0（50ptで好きなSSR、100ptで好きなURと交換できるよ）</p>
+          <p id="pityText">おむかえpt 0（10ptでとっておき以上の旅道具、20ptで推しの覚醒+1、50ptで好きなSSR、100ptで好きなURと交換できるよ）</p>
+          <button class="btn" id="pityItemBtn">🎁 10ptでとっておき以上の道具</button>
+          <button class="btn" id="pityAwakenBtn">🌟 20ptで推しの覚醒+1</button>
           <button class="btn" id="pity50Btn">🎖️ 50ptで好きなSSRと交換</button>
           <button class="btn pity-ur" id="pity100Btn">🌈 100ptで好きなURと交換</button>
         </div>
@@ -1028,12 +1031,15 @@
     friendTownIncomeInterval: 60000,
     friendTownIncomePerTown: 3,
     gachaBaseCost: 150,
-    gachaCostGrowth: 1.08,
+    gachaCostGrowth: 1.05, // 1.08→1.05（100連目が約2万笹＝5桁に収まり、成長ぶんが引ける回数に反映されるように調整。2026-07-25 実測にもとづく再設計）
     rosterRates: { N: 0.55, R: 0.30, SR: 0.11, SSR: 0.035, UR: 0.005 },
     baseStatByRarity: { N: 100, R: 160, SR: 260, SSR: 420, UR: 700 },
-    awakenBonusPerLevel: 0.10,
-    awakenMax: 10,
+    // 覚醒はレア別の上限＋伸び率（2026-07-25 ふゆとさん追加案：低レアほど伸びしろが大きい＝好きな子を育てて冒険できる）
+    // 覚醒MAX時の基礎総合力の目安：N 100→420／R 160→560／SR 260→572／SSR 420→630／UR 700→1050
+    awakenMaxByRarity: { N: 10, R: 10, SR: 10, SSR: 5, UR: 5 },
+    awakenBonusByRarity: { N: 0.32, R: 0.25, SR: 0.12, SSR: 0.10, UR: 0.10 },
     dupConvertSasa: { N: 50, R: 100, SR: 150, SSR: 250, UR: 600 },
+    dupOmukaePt: { N: 1, R: 2, SR: 5, SSR: 15, UR: 40 }, // 被り時のおむかえpt獲得量（覚醒MAX後の被りはこの2倍）
     talentBonusPerMember: 0.15,
     outenPowerBonusPerMember: 0.08,
     formationBalanceBonus: 0.15,
@@ -1048,7 +1054,7 @@
     offlineCapMs: 12 * 3600 * 1000,
     offlineMinMs: 60 * 1000,
     saveIntervalMs: 1000,
-    pityCost: { SSR: 50, UR: 100 }, // おむかえポイントの交換コスト
+    pityCost: { SSR: 50, UR: 100, awaken: 20, item: 10 }, // おむかえポイントの交換コスト
     // ── 時間帯システム（時間帯設計.md準拠・端末時計基準の実時間連動） ──
     timeBands: {
       morning: { startMin: 5 * 60, endMin: 10 * 60, icon: '🌅', label: 'あさ', longLabel: '朝' },
@@ -2278,7 +2284,7 @@
       const base = BALANCE.baseStatByRarity[m.def.rarity];
       const bandMatch = m.def.preferredBand && m.def.preferredBand === band;
       const bandMult = bandMatch ? (1 + BALANCE.timeBandBonus) : 1; // 得意な時間帯+20%
-      baseSum += base * (1 + BALANCE.awakenBonusPerLevel * m.awaken) * bandMult;
+      baseSum += base * (1 + (BALANCE.awakenBonusByRarity[m.def.rarity] || 0) * m.awaken) * bandMult;
       m.def.talents.forEach(function (t) {
         talentCounts[t] = (talentCounts[t] || 0) + 1;
         talentWeightedCounts[t] = (talentWeightedCounts[t] || 0) + bandMult;
@@ -2697,7 +2703,7 @@
      'dropRank', 'dropName', 'dropNewBadge', 'dropFx', 'welcomeCard', 'partySlots', 'totalPowerText',
      'formationText', 'smileForceText', 'autoFormationBtn', 'autoEquipBtn', 'equipSlots', 'invCount', 'invList', 'gachaPullBtn', 'ticketText',
      'emakiScroll', 'emakiRoad', 'emakiChapterPrevBtn', 'emakiChapterNextBtn', 'emakiChapterLabel', 'journalList', 'journalMoreBtn',
-     'pityText', 'pity50Btn', 'pity100Btn',
+     'pityText', 'pity50Btn', 'pity100Btn', 'pityAwakenBtn', 'pityItemBtn',
      'gacha10PullBtn', 'gacha10Result', 'gacha10Grid', 'gacha10Best', 'gacha10CloseBtn',
      'goldenLetterText', 'goldenLetterBtn',
      'zukanTitle', 'zukanGrid', 'modalOverlay', 'modalTitle', 'modalList', 'modalCloseBtn',
@@ -3031,9 +3037,11 @@
       el.ticketText.style.display = 'none';
     }
     const pt = state.omukaePt || 0;
-    el.pityText.textContent = 'おむかえpt ' + pt + '（50ptで好きなSSR、100ptで好きなURと交換できるよ）';
+    el.pityText.textContent = 'おむかえpt ' + pt + '（10ptでとっておき以上の旅道具、20ptで推しの覚醒+1、50ptで好きなSSR、100ptで好きなURと交換できるよ）';
     el.pity50Btn.disabled = pt < BALANCE.pityCost.SSR;
     el.pity100Btn.disabled = pt < BALANCE.pityCost.UR;
+    el.pityAwakenBtn.disabled = pt < BALANCE.pityCost.awaken;
+    el.pityItemBtn.disabled = pt < BALANCE.pityCost.item;
 
     const letters = state.goldenLetters || 0;
     el.goldenLetterText.textContent = '💌 金の手紙 ×' + letters;
@@ -3427,7 +3435,8 @@
     let html = '';
     if (owned) {
       const awaken = owned.awaken || 0;
-      const power = BALANCE.baseStatByRarity[def.rarity] * (1 + BALANCE.awakenBonusPerLevel * awaken);
+      const awakenCap = BALANCE.awakenMaxByRarity[def.rarity] || 10;
+      const power = BALANCE.baseStatByRarity[def.rarity] * (1 + (BALANCE.awakenBonusByRarity[def.rarity] || 0) * awaken);
       const r = def.rarity.toLowerCase();
       const bandText = def.preferredBand
         ? BALANCE.timeBands[def.preferredBand].icon + ' ' + BALANCE.timeBands[def.preferredBand].longLabel + '型（総合力+20%）'
@@ -3439,6 +3448,7 @@
         '<div class="char-detail-talents">得意な時間帯：' + bandText + '</div>' +
         (def.skill ? '<div class="char-detail-skill">固有スキル「' + def.skill.name + '」<br>' + def.skill.desc + '</div>' : '') +
         '<div class="char-detail-power">現在の総合力：<b>' + fmt(power) + '</b></div>' +
+        '<div class="char-detail-awaken-progress">' + (awaken >= awakenCap ? '🌟 覚醒さいだいレベル（Lv' + awakenCap + '）だよ！' : 'あと' + (awakenCap - awaken) + 'かい かぶると さいだいまで いくよ（Lv' + awaken + '／' + awakenCap + '）') + '</div>' +
         '<div class="char-detail-memory">🐾 いっしょに旅した日：' + ((state.memories && state.memories[id] && state.memories[id].days) || 0) + '日　' +
         '☁️ 笑顔にした雲：' + ((state.memories && state.memories[id] && state.memories[id].clouds) || 0) + '個</div>' +
         '<p class="char-detail-flavor">' + def.flavor + '</p>';
@@ -4053,19 +4063,47 @@
   /* ============================================================
    * ガチャ
    * ============================================================ */
-  // ガチャ・天井交換で共通の「入手処理」（既存所持ならかぶり→覚醒、初めてならなかま入り）
+  function awakenCapFor(rarity) { return BALANCE.awakenMaxByRarity[rarity] || 10; }
+
+  // 覚醒レア別上限の移行（2026-07-25 ふゆとさん追加案で導入）：
+  // それ以前の一律仕様で育っていて新しいレア別上限を超えている子がいたら、上限にクランプしつつ
+  // 減った分を「覚醒MAX後の被り」と同じ計算式（笹＆おむかえpt×2）で補填する（プレイヤーが損をしないように）
+  function migrateAwakenCaps() {
+    Object.keys(state.owned || {}).forEach(function (id) {
+      const owned = state.owned[id];
+      const def = CHAR_MAP[id];
+      if (!owned || !def) return;
+      const cap = awakenCapFor(def.rarity);
+      if ((owned.awaken || 0) > cap) {
+        const excess = owned.awaken - cap;
+        owned.awaken = cap;
+        const sasaGain = (BALANCE.dupConvertSasa[def.rarity] || BALANCE.dupConvertSasa.SR) * excess;
+        const ptGain = (BALANCE.dupOmukaePt[def.rarity] || BALANCE.dupOmukaePt.SR) * 2 * excess;
+        state.sasa = (state.sasa || 0) + sasaGain;
+        state.omukaePt = (state.omukaePt || 0) + ptGain;
+        addJournalEntry(def.name + 'の覚醒上限が調整されて、笹とおむかえptを受け取った');
+      }
+    });
+  }
+
+  // ガチャ・天井交換で共通の「入手処理」（既存所持ならかぶり→覚醒（レア別上限）＋おむかえpt、初めてならなかま入り）
   function obtainCharacter(chosen) {
     let noteText = '';
+    const cap = awakenCapFor(chosen.rarity);
+    const dupPt = BALANCE.dupOmukaePt[chosen.rarity] || BALANCE.dupOmukaePt.SR;
     if (state.owned[chosen.id]) {
       const owned = state.owned[chosen.id];
-      if (owned.awaken >= BALANCE.awakenMax) {
+      if (owned.awaken >= cap) {
         const gain = BALANCE.dupConvertSasa[chosen.rarity] || BALANCE.dupConvertSasa.SR;
+        const ptGain = dupPt * 2;
         state.sasa += gain;
-        noteText = 'すでに覚醒MAX！ 笹 ' + fmt(gain) + '本に かわったよ。';
+        state.omukaePt = (state.omukaePt || 0) + ptGain;
+        noteText = 'すでに覚醒MAX！ 笹 ' + fmt(gain) + '本と おむかえpt +' + ptGain + ' に かわったよ。';
       } else {
         owned.awaken++;
-        noteText = 'かぶり！ 覚醒レベルが +1（Lv' + owned.awaken + '）になったよ。';
-        if (owned.awaken >= BALANCE.awakenMax) addJournalEntry(chosen.name + 'が覚醒MAXになった');
+        state.omukaePt = (state.omukaePt || 0) + dupPt;
+        noteText = 'かぶり！ 覚醒レベルが +1（Lv' + owned.awaken + '）になったよ。おむかえpt +' + dupPt;
+        if (owned.awaken >= cap) addJournalEntry(chosen.name + 'が覚醒MAXになった');
       }
     } else {
       state.owned[chosen.id] = { awaken: 0 };
@@ -4110,7 +4148,8 @@
     let html = '';
     GACHA_POOL.filter(function (c) { return c.rarity === rarity; }).forEach(function (def) {
       const owned = state.owned[def.id];
-      const note = owned ? (owned.awaken >= BALANCE.awakenMax ? '（かぶり→笹に変換）' : '（かぶり→覚醒+1）') : '（はじめまして）';
+      const cap = awakenCapFor(rarity);
+      const note = owned ? (owned.awaken >= cap ? '（かぶり→笹＆おむかえptに変換）' : '（かぶり→覚醒+1＆おむかえpt）') : '（はじめまして）';
       html += '<div class="modal-list-item" data-action="redeem" data-rarity="' + rarity + '" data-id="' + def.id + '">' +
         '<img src="' + (def.image || IMG) + '" alt=""><div class="mmeta"><b>' + def.name +
         (owned && owned.awaken > 0 ? ' ★' + owned.awaken : '') + '</b>' + note + '<br>' + def.talents.join('・') + '</div></div>';
@@ -4129,6 +4168,67 @@
     renderHeader(); renderGachaPanel(); renderZukan(); renderPartyPanel();
     saveState();
     showToast('🎁 ' + chosen.name + ' を こうかんで おむかえしたよ！' + noteText);
+  }
+
+  // 20pt＝好きななかまの覚醒+1（覚醒がレア別上限に達していない所持キャラだけが対象）
+  function openAwakenExchangePicker() {
+    const cost = BALANCE.pityCost.awaken;
+    if ((state.omukaePt || 0) < cost) { showToast('おむかえpt が ' + cost + ' に足りないよ…'); return; }
+    const candidates = Object.keys(state.owned).filter(function (id) {
+      const def = CHAR_MAP[id];
+      const owned = state.owned[id];
+      if (!def || !owned) return false;
+      return (owned.awaken || 0) < awakenCapFor(def.rarity);
+    }).sort(function (a, b) { return (CHAR_ORDER_INDEX[a] || 0) - (CHAR_ORDER_INDEX[b] || 0); });
+    if (candidates.length === 0) { showToast('覚醒できるなかまがいないみたい（もうみんな さいだいレベルだよ）'); return; }
+    el.modalTitle.textContent = '覚醒+1する なかまをえらぶ（' + cost + 'pt）';
+    let html = '';
+    candidates.forEach(function (id) {
+      const def = CHAR_MAP[id];
+      const owned = state.owned[id];
+      const awaken = owned.awaken || 0;
+      const cap = awakenCapFor(def.rarity);
+      html += '<div class="modal-list-item" data-action="redeem-awaken" data-id="' + id + '">' +
+        '<img src="' + (def.image || IMG) + '" alt=""><div class="mmeta"><b>' + def.name + ' ★' + awaken +
+        '</b>（覚醒 Lv' + awaken + ' → Lv' + (awaken + 1) + '／さいだいLv' + cap + '）<br>' + def.talents.join('・') + '</div></div>';
+    });
+    el.modalList.innerHTML = html;
+    el.modalOverlay.style.display = 'flex';
+  }
+
+  function redeemAwakenExchange(id) {
+    const cost = BALANCE.pityCost.awaken;
+    if ((state.omukaePt || 0) < cost) { showToast('おむかえpt が足りないよ…'); return; }
+    const def = CHAR_MAP[id];
+    const owned = state.owned[id];
+    if (!def || !owned) return;
+    const cap = awakenCapFor(def.rarity);
+    if (owned.awaken >= cap) { showToast(def.name + ' はもう覚醒さいだいレベルだよ'); return; }
+    state.omukaePt -= cost;
+    owned.awaken++;
+    if (owned.awaken >= cap) addJournalEntry(def.name + 'が覚醒MAXになった');
+    renderHeader(); renderGachaPanel(); renderZukan(); renderPartyPanel();
+    saveState();
+    showToast('🌟 ' + def.name + ' の覚醒が Lv' + owned.awaken + ' になったよ！');
+  }
+
+  // 10pt＝とっておき以上の旅道具1個（generateItemを「とっておき／でんせつ」だけに絞って抽選）
+  function redeemItemExchange() {
+    const cost = BALANCE.pityCost.item;
+    if ((state.omukaePt || 0) < cost) { showToast('おむかえpt が足りないよ…'); return; }
+    state.omukaePt -= cost;
+    const sum = BALANCE.equipRarityRates.totteoki + BALANCE.equipRarityRates.densetsu;
+    const rarity = pickWeighted({
+      totteoki: BALANCE.equipRarityRates.totteoki / sum,
+      densetsu: BALANCE.equipRarityRates.densetsu / sum,
+    });
+    const item = generateItem(false, rarity);
+    item.newFlag = computeIsNew(item);
+    addItemToInventory(item);
+    state.lastDrop = item;
+    renderHeader(); renderGachaPanel(); renderEquipPanel();
+    saveState();
+    showDropCard(item);
   }
 
   let gachaRevealTimer = null;
@@ -4534,6 +4634,8 @@
         renderEquipPanel(); renderPartyPanel();
       } else if (action === 'redeem') {
         redeemExchange(item.dataset.rarity, item.dataset.id);
+      } else if (action === 'redeem-awaken') {
+        redeemAwakenExchange(item.dataset.id);
       }
       closeModal();
     });
@@ -4549,6 +4651,8 @@
     el.gachaOverlay.addEventListener('click', function (ev) { if (ev.target === el.gachaOverlay) el.gachaOverlay.style.display = 'none'; });
     el.pity50Btn.addEventListener('click', function () { openPityPicker('SSR'); });
     el.pity100Btn.addEventListener('click', function () { openPityPicker('UR'); });
+    el.pityAwakenBtn.addEventListener('click', openAwakenExchangePicker);
+    el.pityItemBtn.addEventListener('click', redeemItemExchange);
     el.goldenLetterBtn.addEventListener('click', pullGoldenLetter);
 
     el.bossAreaList.addEventListener('click', function (ev) {
@@ -4668,6 +4772,7 @@
         }
       });
     }
+    migrateAwakenCaps(); // 覚醒レア別上限の移行（超過ぶんはクランプ＋補填）
 
     // クラウドに新しい記録があれば採用する（last-write-wins・確認ダイアログなし）
     // ネット未接続やSupabase障害でも失敗を握りつぶして先に進む
@@ -4826,6 +4931,15 @@
     shareGachaShareCard: shareGachaShareCard,
     charRarityRank: charRarityRank,
     playGachaAnimation: playGachaAnimation,
+    awakenCapFor: awakenCapFor,
+    migrateAwakenCaps: migrateAwakenCaps,
+    openPityPicker: openPityPicker,
+    redeemExchange: redeemExchange,
+    openAwakenExchangePicker: openAwakenExchangePicker,
+    redeemAwakenExchange: redeemAwakenExchange,
+    redeemItemExchange: redeemItemExchange,
+    generateItem: generateItem,
+    currentGachaCost: currentGachaCost,
   };
 
   window.addEventListener('DOMContentLoaded', function () { init(); });
