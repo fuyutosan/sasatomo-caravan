@@ -475,6 +475,9 @@
   .btn.boss-challenge { background: #b0473f; border-color: #6e2b26; box-shadow: 0 4px 0 #6e2b26; margin-bottom: 8px; }
   .btn.boss-challenge:active { box-shadow: 0 1px 0 #6e2b26; }
   .boss-cleared-row { font-size: 12px; color: #4a6b4f; background: #eef6ea; border: 2px solid #cfe3c8; padding: 8px; margin-bottom: 8px; }
+  .boss-area-row { margin-bottom: 10px; }
+  .boss-progress-text { font-size: 11px; color: #6e2b26; margin: -4px 0 0; line-height: 1.6; }
+  .boss-hint-note { font-size: 11px; color: #4a6b4f; margin-top: 2px; }
   .boss-modal { text-align: center; }
   .boss-scene {
     position: relative; height: 140px; background: #241a2c;
@@ -976,19 +979,19 @@
     firstCloudMax: 3000,
     cloudBaseTime: 2500,         // 浄化にかかる基本時間(ms)
     cloudBaseTimeMin: 800,       // 浄化時間の下限
-    sasaRewardMin: 10, sasaRewardMax: 30,
+    sasaRewardMin: 1, sasaRewardMax: 3,
     powerRewardMin: 8, powerRewardMax: 14,
     dropBaseChance: 0.08,
     dropChanceCap: 0.6,
     friendTownIncomeInterval: 60000,
-    friendTownIncomePerTown: 30,
-    gachaBaseCost: 3000,
-    gachaCostGrowth: 1.15,
+    friendTownIncomePerTown: 3,
+    gachaBaseCost: 150,
+    gachaCostGrowth: 1.08,
     rosterRates: { N: 0.55, R: 0.30, SR: 0.11, SSR: 0.035, UR: 0.005 },
     baseStatByRarity: { N: 100, R: 160, SR: 260, SSR: 420, UR: 700 },
     awakenBonusPerLevel: 0.10,
-    awakenMax: 5,
-    dupConvertSasa: { N: 500, R: 1000, SR: 1500, SSR: 2500, UR: 6000 },
+    awakenMax: 10,
+    dupConvertSasa: { N: 50, R: 100, SR: 150, SSR: 250, UR: 600 },
     talentBonusPerMember: 0.15,
     outenPowerBonusPerMember: 0.08,
     formationBalanceBonus: 0.15,
@@ -1014,11 +1017,12 @@
     timeBandOrder: ['morning', 'day', 'evening', 'night'],
     timeBandBonus: 0.20, // 得意な時間帯のあいだ、その子の総合力+20%
     // ── おおもやもや戦（エリアボス・企画書.md §4-7） ──
-    bossUnlockTownCounts: [3, 6, 8], // クリア済み町数がこの値に達するとそのエリアのボスが解放される（3体固定）
+    bossUnlockTownCounts: [3, 6, 9, 12, 16], // クリア済み町数がこの値に達するとそのエリアのボスが解放される（5体・16町拡張ぶん）
     bossBattleMs: 60000,
-    bossHpBase: 900,       // エリア1のHP（浄化力の平均的な編成でだいたい60秒ぴったりで削りきれる想定）
-    bossHpGrowth: 1.8,     // エリアが進むごとにHPが1.8倍
-    bossDpsPerPurifyMult: 10, // 1秒あたりのダメージ = これ × stats.purifyMult
+    bossHpBase: 600,       // エリア1のHP（浄化力の平均的な編成でだいたい60秒ぴったりで削りきれる想定）
+    bossHpGrowth: 1.5,     // エリアが進むごとにHPが1.5倍
+    bossDpsPerPurifyMult: 10, // 「いますぐ挑戦」1秒あたりのダメージ = これ × stats.purifyMult
+    bossPassiveDpsPerPurify: 5, // 「じわじわ（放置）」1分あたりのダメージ = これ × stats.purifyMult（オンライン中もオフライン中も進む）
     bossConfidentRatio: 1.05, // 60秒ぶんの想定削り量がHPのこの倍率以上→😊勝てそう！
     bossCloseRatio: 0.85,     // 〜この倍率以上なら😅いい勝負／それ未満は😰まだきびしいかも
     goldenLetterRates: { SSR: 0.875, UR: 0.125 }, // 金の手紙＝SSR以上確定（3.5:0.5の比率のまま正規化）
@@ -1567,6 +1571,14 @@
     { name: 'しとしと沼', requirement: 400, specialty: 'あめやどり傘' },
     { name: 'かぜのとうげ', requirement: 600, specialty: '風ぐるま' },
     { name: 'ほしふる高原', requirement: 900, specialty: '星のかけらキャンディ' },
+    { name: 'ゆきふり峠', requirement: 1300, specialty: 'ゆきだるまマフラー' },
+    { name: 'こだま谷', requirement: 1800, specialty: 'やまびこホラガイ' },
+    { name: 'なぎさ町', requirement: 2500, specialty: 'さんごのがくふ' },
+    { name: 'かげろう砂丘', requirement: 3400, specialty: 'さばくのオアシス水筒' },
+    { name: 'ほしみ湖', requirement: 4600, specialty: 'みずうみの流れ星石' },
+    { name: 'きりのもり', requirement: 6200, specialty: 'きりよけカンテラ' },
+    { name: 'たきのぼり里', requirement: 8400, specialty: 'たきのぼりわらじ' },
+    { name: 'そらのはて', requirement: 11000, specialty: 'そらのはてのはごろも' },
   ];
 
   const DIARY_LINES = [
@@ -1643,7 +1655,8 @@
   function defaultState() {
     const now = Date.now();
     return {
-      sasa: 1000,
+      sasa: 100,
+      sasaScaleV2: true, // 2026-07-25 笹の全体スケールを1/10にした移行フラグ。これが無い旧セーブは起動時に一度だけ /10 する
       pandaPower: 0,
       owned: { taicho: { awaken: 0 } },
       party: ['taicho', null, null, null],
@@ -1661,6 +1674,7 @@
       omukaePt: 0,
       bossWon: {},       // { エリア番号: true } 今の旅路での勝利記録（再挑戦可否の判定用。転生でリセットされる）
       bossEverWon: {},   // { エリア番号: true } 過去いちどでも勝った記録（永続・転生でも消えない。笑顔雲の表示はこちらを見る＝旅の証）
+      bossHp: {},        // { エリア番号: 現在HP } じわじわ討伐の進捗（挑戦バトルで削った分もここに蓄積される・転生でリセット）
       goldenLetters: 0,  // 金の手紙💌の所持数
       journal: [{ date: todayDateLabel(), text: '旅がはじまった' }], // キャラバン旅日記（自動年表・最大200件）
       memories: {},      // { キャラid: { days, clouds } } なかまの思い出メモリー
@@ -1898,16 +1912,52 @@
     currentSnapRecipe = null;
     currentSnapCanvas = null;
   }
-  function downloadSnap() {
-    if (!currentSnapCanvas) return;
+  // canvasを画像として端末に保存する共通処理（スナップ・なかまずかんシェアカード両方で使う）。
+  // iOS Safariは a[download] を無視して保存できないバグがあるため、
+  // 1) 共有シートから保存できるならnavigator.shareを最優先→2) それ以外はa[download]→
+  // 3) iOSでa[download]も効かない場合だけ新しいタブで開いて長押し保存を案内する、の順で試す。
+  async function saveCanvasImage(canvas, filenameBase) {
+    if (!canvas) return;
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+    if (navigator.canShare) {
+      let blob = null;
+      try { blob = await new Promise(function (resolve) { canvas.toBlob(resolve, 'image/png'); }); } catch (e) { blob = null; }
+      if (blob) {
+        const file = new File([blob], filenameBase + '.png', { type: 'image/png' });
+        if (navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({ files: [file] });
+            return;
+          } catch (e) {
+            if (e && e.name === 'AbortError') return; // ユーザーがキャンセルしただけ→なにもしない
+            // それ以外の失敗はこの下のフォールバックへ続行
+          }
+        }
+      }
+    }
+
     let dataUrl;
-    try { dataUrl = currentSnapCanvas.toDataURL('image/png'); } catch (e) { showToast('ほぞんできなかったよ…'); return; }
+    try { dataUrl = canvas.toDataURL('image/png'); } catch (e) { showToast('ほぞんできなかったよ…'); return; }
+
+    if (isIOS) {
+      // iOS Safariは a[download] を無視するので、新しいタブで開いて長押し保存を案内する
+      window.open(dataUrl, '_blank');
+      showToast('がぞうを ながおしして ほぞんしてね');
+      return;
+    }
+
     const a = document.createElement('a');
     a.href = dataUrl;
-    a.download = 'sasatomo-snap-' + (currentSnapRecipe ? currentSnapRecipe.id : Date.now()) + '.png';
+    a.download = filenameBase + '.png';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+  }
+
+  function downloadSnap() {
+    if (!currentSnapCanvas) return;
+    saveCanvasImage(currentSnapCanvas, 'sasatomo-snap-' + (currentSnapRecipe ? currentSnapRecipe.id : Date.now()));
   }
   // フォールバック（Web Share APIが使えない環境）：がぞうを自動ダウンロード＋Xへの投稿導線を開く（アプリ優先→web版フォールバックはshareToXが担当）
   function shareSnapFallback(shareText, gameUrl) {
@@ -2263,7 +2313,7 @@
     return effectSum(item) > effectSum(equipped);
   }
   function rarityRank(r) { return { futsu: 0, suteki: 1, totteoki: 2, densetsu: 3 }[r] || 0; }
-  function rarityValue(r) { return { futsu: 50, suteki: 150, totteoki: 400, densetsu: 1000 }[r] || 50; }
+  function rarityValue(r) { return { futsu: 5, suteki: 15, totteoki: 40, densetsu: 100 }[r] || 5; }
 
   function addItemToInventory(item) {
     state.inventory.push(item);
@@ -2345,9 +2395,9 @@
   function townRequirement(i) {
     return Math.round(TOWNS[i].requirement * journeyScaleMult());
   }
-  // 解放条件：8町すべてクリア＋今の旅路でおおもやもや3勝（wagonLevel Lv4と同じ判定基準）
+  // 解放条件：16町すべてクリア＋今の旅路でおおもやもや5勝（5エリアぶん全勝）
   function canRebirth() {
-    return !!state.finalMessageShown && bossWinCount() >= 3;
+    return !!state.finalMessageShown && bossWinCount() >= 5;
   }
   function startRebirth() {
     if (!canRebirth()) return;
@@ -2360,6 +2410,7 @@
     state.clearedTowns = 0;
     state.finalMessageShown = false;
     state.bossWon = {};
+    state.bossHp = {}; // HPスケールが変わる（journeyScaleMult増加）ので、じわじわ進捗もリセットする
     // 維持されるもの：なかま・覚醒・装備・持ち物・笹・パンダさんパワー・おむかえpt・金の手紙・日記・スナップ・思い出・笑顔雲(bossEverWon)は
     // ここで一切触らない＝そのまま残る
     state.ticket = (state.ticket || 0) + 1; // 旅路ボーナス(b)：おさそいの手紙+1枚
@@ -2390,7 +2441,7 @@
       } else {
         if (!state.finalMessageShown) {
           state.finalMessageShown = true;
-          showToast('🎉 ' + TOWNS.length + 'つの町をまわりきったよ！ つづきはこれから！（おおもやもや戦をまっててね）');
+          showToast('🎉 せかいを ひとまわり したよ！ あたらしい旅路へ いこう');
           addJournalEntry(clearedName + 'を元気にした');
           captureSnap('town', { name: clearedName });
           BgmEngine.playFanfare();
@@ -2503,6 +2554,7 @@
       clouds: totalClouds, sasaGain: totalSasa, powerGain: totalPower, itemsGain: itemsGain,
       hasHanamaru: liveStats.hasHanamaru,
       bandTotals: bandTotals, bandOrder: bandOrder, segments: segments,
+      purifyMult: liveStats.purifyMult, effectiveSpanMs: effectiveSpan, // ボスのじわじわ討伐（applyOfflineReport側）で使う
     };
   }
 
@@ -2549,6 +2601,11 @@
       state.lastDrop = item;
     }
     result.storyLines = buildBandStoryLines(result.bandOrder, result.bandTotals);
+
+    // ボスのじわじわ討伐：るすばん中の経過時間ぶんもHPを削る（寝てる間に倒せる）
+    const justWonAreas = applyBossPassiveDecay(result.purifyMult, result.effectiveSpanMs);
+    result.bossWins = justWonAreas.map(function (area) { return grantBossWin(area, { silent: true }); });
+
     return result;
   }
 
@@ -2597,7 +2654,7 @@
 
   function renderTownBar() {
     if (state.finalMessageShown) {
-      el.townText.textContent = '🗾 つづきはこれから！（おおもやもや戦をまっててね）旅はまだまだつづくよ';
+      el.townText.textContent = '🗾 せかいを ひとまわり したよ！ あたらしい旅路へ いこう（ボスは のこっていても だいじょうぶ）';
       el.townFill.style.width = '100%';
       el.townPct.textContent = 'つづく…';
     } else {
@@ -3015,6 +3072,92 @@
   function bossDamageForElapsed(purifyMult, elapsedMs) {
     return BALANCE.bossDpsPerPurifyMult * purifyMult * (elapsedMs / 1000);
   }
+  // じわじわ（放置）1分あたりのダメージ
+  function bossPassiveDamageForElapsed(purifyMult, elapsedMs) {
+    return BALANCE.bossPassiveDpsPerPurify * purifyMult * (elapsedMs / 60000);
+  }
+
+  // そのエリアの「いま残っているHP」（挑戦バトル・じわじわ討伐、両方の削り分をここに永続化する）
+  function currentBossHp(area) {
+    if (!state.bossHp) state.bossHp = {};
+    const max = bossHpForArea(area);
+    if (state.bossHp[area] === undefined || state.bossHp[area] === null) state.bossHp[area] = max;
+    return Math.max(0, Math.min(state.bossHp[area], max));
+  }
+
+  // 今アンロックされている「まだ勝っていない」エリア番号の一覧
+  function unlockedUnwonBossAreas() {
+    const unlockedCount = BALANCE.bossUnlockTownCounts.filter(function (t) { return (state.clearedTowns || 0) >= t; }).length;
+    const list = [];
+    for (let area = 1; area <= unlockedCount; area++) {
+      if (!(state.bossWon && state.bossWon[area])) list.push(area);
+    }
+    return list;
+  }
+
+  // じわじわ討伐：経過時間ぶんだけ、まだ勝っていない全アンロック済みエリアのHPを一斉に削る。
+  // 「いますぐ挑戦」バトルが進行中のエリアはそちらのダメージ計算と二重取りにならないよう対象外にする。
+  // 戻り値：この呼び出しでHP0になった（笑顔になった）エリア番号の配列
+  function applyBossPassiveDecay(purifyMult, elapsedMs) {
+    if (!elapsedMs || elapsedMs <= 0) return [];
+    const justWon = [];
+    unlockedUnwonBossAreas().forEach(function (area) {
+      if (runtime.boss && runtime.boss.active && runtime.boss.area === area) return; // 挑戦バトル中は専用のダメージ計算に任せる
+      const cur = currentBossHp(area);
+      if (cur <= 0) return; // 既に0（勝利処理待ち）は再通知しない＝grantBossWinの多重呼び出し防止
+      const dmg = bossPassiveDamageForElapsed(purifyMult, elapsedMs);
+      const next = Math.max(0, cur - dmg);
+      state.bossHp[area] = next;
+      if (next <= 0) justWon.push(area);
+    });
+    return justWon;
+  }
+
+  // このままじわじわだけで倒しきるまでの見込み時間（時間単位）。purifyMultが0なら倒せないのでInfinity
+  function bossPassiveEtaHours(area) {
+    const stats = computeStats();
+    const cur = currentBossHp(area);
+    if (cur <= 0) return 0;
+    const dpsPerMinute = BALANCE.bossPassiveDpsPerPurify * stats.purifyMult;
+    if (dpsPerMinute <= 0) return Infinity;
+    return (cur / dpsPerMinute) / 60;
+  }
+
+  // 勝利報酬の付与（「いますぐ挑戦」で倒しきった時／じわじわでHPが0になった時、共通で使う）
+  function grantBossWin(area, opts) {
+    opts = opts || {};
+    if (!state.bossWon) state.bossWon = {};
+    state.bossWon[area] = true;
+    if (!state.bossEverWon) state.bossEverWon = {};
+    state.bossEverWon[area] = true; // 永続の証（転生しても消えない）
+    if (!state.bossHp) state.bossHp = {};
+    state.bossHp[area] = 0;
+    state.goldenLetters = (state.goldenLetters || 0) + 1;
+    const rewardLines = ['💌 金の手紙を 1つ もらったよ！'];
+    if (Math.random() < 0.5) {
+      const item = generateItem(computeStats().hasHanamaru, 'densetsu');
+      item.newFlag = computeIsNew(item);
+      addItemToInventory(item);
+      state.lastDrop = item;
+      rewardLines.push('🎁 でんせつ級の旅道具「' + item.name + '」も見つけたよ！');
+    }
+    const townName = bossAreaTownName(area);
+    addJournalEntry('おおもやもやが笑顔になった（' + townName + '）');
+    addJournalEntry('金の手紙をもらった');
+    captureSnap('boss', { name: townName });
+    if (!opts.silent) BgmEngine.playFanfare();
+    return { area: area, townName: townName, rewardLines: rewardLines };
+  }
+
+  // じわじわ討伐でエリアが倒れた（オンラインtick中・るすばん精算中どちらでも呼ばれる）ときの通知＋再描画
+  function announceBossWins(wins) {
+    if (!wins || !wins.length) return;
+    const names = wins.map(function (w) { return w.townName; }).join('・');
+    showToast('🌤 ' + names + 'の おおもやもやが 笑顔になったよ！');
+    renderBossAreas();
+    renderSmileClouds();
+    renderJourneyCard();
+  }
 
   // 「笑顔にする力」＝purifyMultをパーセント表示にした呼び名（内部の計算式はそのまま・呼び名だけ統一する）
   function smileForcePercent(stats) {
@@ -3050,10 +3193,19 @@
       } else {
         const est = bossWinEstimate(area);
         const conf = BOSS_CONFIDENCE[est.level];
-        html += '<button class="btn boss-challenge" data-area="' + area + '">🥊 おおもやもやが空にいるよ…挑戦する？（' + bossAreaTownName(area) + '）' +
-          '<span class="boss-confidence">' + conf.icon + ' ' + conf.text + '</span></button>';
+        const maxHp = bossHpForArea(area);
+        const curHp = currentBossHp(area);
+        const remainPct = maxHp > 0 ? Math.max(0, Math.min(100, Math.round((curHp / maxHp) * 100))) : 0;
+        const etaH = bossPassiveEtaHours(area);
+        const etaText = !isFinite(etaH) ? 'とても長い時間' : (etaH < 1 ? '1じかんいない' : Math.ceil(etaH) + 'じかん');
+        html += '<div class="boss-area-row">' +
+          '<button class="btn boss-challenge" data-area="' + area + '">🥊 いますぐ挑戦する（' + bossAreaTownName(area) + '）' +
+          '<span class="boss-confidence">' + conf.icon + ' ' + conf.text + '</span></button>' +
+          '<p class="boss-progress-text">🌱 じわじわ：のこり ' + remainPct + '%（このままでも 約' + etaText + 'で 笑顔にできるよ）</p>' +
+          '</div>';
       }
     }
+    html += '<p class="boss-hint-note">ボスを倒さなくても 町の旅はつづくよ</p>';
     el.bossAreaList.innerHTML = html;
   }
 
@@ -3075,12 +3227,13 @@
   let bossTickTimer = null;
   function startBossBattle(area) {
     const maxHp = bossHpForArea(area);
-    runtime.boss = { active: true, area: area, maxHp: maxHp, startedAt: Date.now(), timeLimitMs: BALANCE.bossBattleMs };
+    const startHp = currentBossHp(area); // じわじわで削った分・前回の挑戦で削った分から続きを戦う
+    runtime.boss = { active: true, area: area, maxHp: maxHp, startHp: startHp, startedAt: Date.now(), timeLimitMs: BALANCE.bossBattleMs };
     el.bossResultView.style.display = 'none';
     el.bossBattleView.style.display = '';
     el.bossOverlay.style.display = 'flex';
     BgmEngine.enterBossMode();
-    renderBossProgress(maxHp, maxHp, BALANCE.bossBattleMs);
+    renderBossProgress(startHp, maxHp, BALANCE.bossBattleMs);
     el.bossSmileForceText.textContent = '😊 笑顔にする力 ' + smileForcePercent(computeStats()) + '%';
     if (bossTickTimer) clearInterval(bossTickTimer);
     bossTickTimer = setInterval(bossTick, 200);
@@ -3092,7 +3245,9 @@
     const elapsed = Date.now() - runtime.boss.startedAt;
     const stats = computeStats();
     const damage = bossDamageForElapsed(stats.purifyMult, elapsed);
-    const hp = Math.max(0, runtime.boss.maxHp - damage);
+    const hp = Math.max(0, runtime.boss.startHp - damage);
+    if (!state.bossHp) state.bossHp = {};
+    state.bossHp[runtime.boss.area] = hp; // 削った分はその場で永続化する（時間切れでも消えない）
     renderBossProgress(hp, runtime.boss.maxHp, Math.max(0, runtime.boss.timeLimitMs - elapsed));
     if (hp <= 0) { finishBossBattle(true, 100); return; }
     if (elapsed >= runtime.boss.timeLimitMs) {
@@ -3121,27 +3276,11 @@
     el.bossBattleView.style.display = 'none';
     el.bossResultView.style.display = '';
     if (won) {
-      if (!state.bossWon) state.bossWon = {};
-      state.bossWon[area] = true;
-      if (!state.bossEverWon) state.bossEverWon = {};
-      state.bossEverWon[area] = true; // 永続の証（転生しても消えない。見た目はここが変わらないだけで勝利記録は更新される）
-      state.goldenLetters = (state.goldenLetters || 0) + 1;
-      const rewardLines = ['💌 金の手紙を 1つ もらったよ！'];
-      if (Math.random() < 0.5) {
-        const item = generateItem(computeStats().hasHanamaru, 'densetsu');
-        item.newFlag = computeIsNew(item);
-        addItemToInventory(item);
-        state.lastDrop = item;
-        rewardLines.push('🎁 でんせつ級の旅道具「' + item.name + '」も見つけたよ！');
-      }
+      const grant = grantBossWin(area);
       el.bossResultTitle.textContent = '🎉 おおもやもやが おおきな笑顔になった！';
       el.bossResultText.textContent = '';
       el.bossHintText.style.display = 'none';
-      el.bossResultRewards.innerHTML = rewardLines.map(function (t) { return '<li>' + t + '</li>'; }).join('');
-      addJournalEntry('おおもやもやが笑顔になった（' + bossAreaTownName(area) + '）');
-      addJournalEntry('金の手紙をもらった');
-      captureSnap('boss', { name: bossAreaTownName(area) });
-      BgmEngine.playFanfare();
+      el.bossResultRewards.innerHTML = grant.rewardLines.map(function (t) { return '<li>' + t + '</li>'; }).join('');
     } else {
       el.bossResultTitle.textContent = 'じかんぎれ…';
       el.bossResultText.textContent = (clearedPct || 0) + '%まで削れたよ。もやもやは にげないから、つよくなって また来てね';
@@ -3300,7 +3439,9 @@
       const col = i % cols, row = Math.floor(i / cols);
       const cx = cellW * col + cellW / 2;
       const cy = gridTop + cellH * row + cellH / 2;
-      const owned = !!state.owned[def.id];
+      const ownedObj = state.owned[def.id];
+      const owned = !!ownedObj;
+      const awakenLv = ownedObj ? (ownedObj.awaken || 0) : 0;
       const img = imgs[i];
       const iconH = cellH * 0.56;
       const iconY = cy - cellH * 0.32 + 7 * s;
@@ -3311,12 +3452,31 @@
           const color = CHAR_RARITY_COLOR[def.rarity] || '#4aa3ff';
           const boxW = Math.min(cellW * 0.86, iconW + 18 * s);
           const boxH = iconH + 14 * s;
+          const boxLeft = cx - boxW / 2;
+          const boxTop = cy - cellH * 0.32;
           ctx.fillStyle = 'rgba(255,255,255,.72)';
-          ctx.fillRect(cx - boxW / 2, cy - cellH * 0.32, boxW, boxH);
+          ctx.fillRect(boxLeft, boxTop, boxW, boxH);
           ctx.lineWidth = Math.max(1.5, 3 * s);
           ctx.strokeStyle = color;
-          ctx.strokeRect(cx - boxW / 2, cy - cellH * 0.32, boxW, boxH);
+          ctx.strokeRect(boxLeft, boxTop, boxW, boxH);
           ctx.drawImage(img, cx - iconW / 2, iconY, iconW, iconH);
+          if (awakenLv > 0) {
+            // 覚醒レベルバッジ（枠の右下に小さく「Lv3」のように表示）
+            const badgeText = 'Lv' + awakenLv;
+            ctx.font = 'bold ' + Math.round(11 * s) + "px 'DotGothic16', sans-serif";
+            const bw = ctx.measureText(badgeText).width + 8 * s;
+            const bh = 14 * s;
+            const bx2 = boxLeft + boxW - bw - 2 * s;
+            const by2 = boxTop + boxH - bh - 6 * s;
+            ctx.fillStyle = '#d99a00';
+            ctx.fillRect(bx2, by2, bw, bh);
+            ctx.lineWidth = Math.max(1, 1.5 * s);
+            ctx.strokeStyle = 'rgba(20,10,15,.6)';
+            ctx.strokeRect(bx2, by2, bw, bh);
+            ctx.fillStyle = '#fff';
+            ctx.textAlign = 'center';
+            ctx.fillText(badgeText, bx2 + bw / 2, by2 + bh * 0.75);
+          }
         } else {
           const sil = getSilhouette(img, def.image || IMG);
           if (sil) {
@@ -3405,14 +3565,7 @@
   }
   function downloadZukanCard() {
     if (!currentZukanCanvas) return;
-    let dataUrl;
-    try { dataUrl = currentZukanCanvas.toDataURL('image/png'); } catch (e) { showToast('ほぞんできなかったよ…'); return; }
-    const a = document.createElement('a');
-    a.href = dataUrl;
-    a.download = 'sasatomo-zukan-' + Date.now() + '.png';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    saveCanvasImage(currentZukanCanvas, 'sasatomo-zukan-' + Date.now());
   }
   function shareZukanFallback(shareText, gameUrl) {
     downloadZukanCard();
@@ -3799,6 +3952,7 @@
     cloudState: 'idle', nextSpawnAt: 0, purifyEndAt: 0, boss: null,
     camp: { active: false, endAt: 0, nextAt: 0 },   // 夜キャンプ（展望アイデア帳.md⑥）
     chatter: { nextAt: 0 },                          // なかまのおしゃべり（展望アイデア帳.md⑦）
+    bossDecay: { lastAt: 0, lastRenderAt: 0 },       // じわじわ討伐（オンライン中の経過時間ぶんの削り）
   };
 
   function spawnCloud() {
@@ -3833,6 +3987,25 @@
     saveState();
   }
 
+  // ボスのじわじわ討伐（オンライン中）：前回tickからの経過時間ぶんだけHPを削る。定期的に画面も更新する
+  function updateBossPassiveDecay(now) {
+    if (!runtime.bossDecay.lastAt) { runtime.bossDecay.lastAt = now; runtime.bossDecay.lastRenderAt = now; return; }
+    const elapsed = now - runtime.bossDecay.lastAt;
+    runtime.bossDecay.lastAt = now;
+    if (elapsed <= 0) return;
+    const stats = computeStats();
+    const justWon = applyBossPassiveDecay(stats.purifyMult, elapsed);
+    if (justWon.length) {
+      const wins = justWon.map(function (a) { return grantBossWin(a); });
+      saveState();
+      announceBossWins(wins);
+      renderJournal();
+    } else if (now - runtime.bossDecay.lastRenderAt > 3000) {
+      runtime.bossDecay.lastRenderAt = now;
+      renderBossAreas(); // 「のこり◯%」表示をこまめに更新（DOM負荷をおさえるため3秒おき）
+    }
+  }
+
   function tick() {
     const now = Date.now();
     if (runtime.cloudState === 'idle') {
@@ -3840,6 +4013,7 @@
     } else if (runtime.cloudState === 'active') {
       if (now >= runtime.purifyEndAt) resolveCloud();
     }
+    updateBossPassiveDecay(now);
     updateCamp();
     updateChatter();
   }
@@ -4094,6 +4268,11 @@
     cacheEls();
     renderCloudIcon();
     state = loadState() || defaultState();
+    // 笹の全体スケールを1/10にした移行（2026-07-25）：フラグが無い旧セーブだけ、起動時に一度だけ笹を/10する
+    if (!state.sasaScaleV2) {
+      state.sasa = Math.max(0, Math.round((state.sasa || 0) / 10));
+      state.sasaScaleV2 = true;
+    }
     const needsJournalMigration = (state.journal === undefined); // 旅日記が無い旧セーブ＝マイグレーション対象
     // 転生機能追加前のセーブ互換：bossEverWon（永続の勝利証）が無ければ、今までのbossWonをそのまま引き継ぐ
     // （汎用補完だと空{}になってしまい、既に勝っていたはずの笑顔雲が消えて見えてしまうため）
@@ -4128,9 +4307,12 @@
     renderCloudPanel();
     applyBandVisuals(true); // 起動時の帯は即時反映（クロスフェードしない）
     if (report) showReportCard(report); else el.reportCard.style.display = 'none';
+    if (report && report.bossWins && report.bossWins.length) announceBossWins(report.bossWins); // るすばん中にじわじわ討伐が完了していたら報告
 
     runtime.nextSpawnAt = now + rand(BALANCE.firstCloudMin, BALANCE.firstCloudMax);
     runtime.chatter.nextAt = now + rand(5000, 15000); // 起動直後は少し早めに1回目のおしゃべりが見られるように
+    runtime.bossDecay.lastAt = now;
+    runtime.bossDecay.lastRenderAt = now;
     setInterval(tick, 150);
     setInterval(function () {
       if (state.clearedTowns > 0) {
@@ -4238,6 +4420,15 @@
     closeZukanShare: closeZukanShare,
     downloadZukanCard: downloadZukanCard,
     shareZukanCard: shareZukanCard,
+    currentBossHp: currentBossHp,
+    applyBossPassiveDecay: applyBossPassiveDecay,
+    bossPassiveEtaHours: bossPassiveEtaHours,
+    unlockedUnwonBossAreas: unlockedUnwonBossAreas,
+    grantBossWin: grantBossWin,
+    announceBossWins: announceBossWins,
+    updateBossPassiveDecay: updateBossPassiveDecay,
+    saveCanvasImage: saveCanvasImage,
+    downloadSnap: downloadSnap,
   };
 
   window.addEventListener('DOMContentLoaded', function () { init(); });
