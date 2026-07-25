@@ -639,6 +639,15 @@
   .gresult-note { font-size: 11px; color: #7a3fd0; margin-top: 8px; }
   .gresult-skill { font-size: 12px; color: #a67c00; margin-top: 6px; line-height: 1.6; }
 
+  /* ── ガチャ結果シェアボタン（SSR以上だけ目立たせる） ── */
+  .btn.share.share-highlight {
+    border-color: #ffb400;
+    box-shadow: 0 4px 0 #000, 0 0 16px 5px rgba(255, 180, 0, .8);
+    animation: shareHighlightPulse 1.1s ease-in-out infinite;
+  }
+  .btn.share.share-highlight.ur-highlight { animation: shareHighlightPulse 1.1s ease-in-out infinite, urGlow 1.4s linear infinite; }
+  @keyframes shareHighlightPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+
   /* ── ずかん詳細モーダル・画像拡大 ── */
   .char-detail { text-align: center; }
   .char-detail-img { width: 100px; height: 100px; object-fit: contain; image-rendering: pixelated; cursor: zoom-in; }
@@ -665,6 +674,7 @@
   .snap-modal .btn { margin-top: 8px; }
   #zukanShareBtn { margin-bottom: 10px; }
   #zukanShareBody canvas { width: 100%; height: auto; display: block; border: 2px solid var(--dark); }
+  #gachaShareBody canvas { width: 100%; height: auto; display: block; border: 2px solid var(--dark); }
 </style>
 </head>
 <body>
@@ -919,12 +929,14 @@
       <p class="gresult-skill" id="gachaResultSkill" style="display:none;"></p>
       <p class="gresult-flavor" id="gachaResultFlavor"></p>
       <p class="gresult-note" id="gachaResultNote" style="display:none;"></p>
-      <button class="btn gacha" id="gachaCloseBtn" style="margin-top:12px;">とじる</button>
+      <button class="btn share" id="gachaResultShareBtn" style="margin-top:12px;">🐦 この子をシェア</button>
+      <button class="btn gacha" id="gachaCloseBtn" style="margin-top:8px;">とじる</button>
     </div>
     <div id="gacha10Result" style="display:none;">
       <div class="g10-grid" id="gacha10Grid"></div>
       <div class="g10-best" id="gacha10Best"></div>
-      <button class="btn gacha" id="gacha10CloseBtn" style="margin-top:12px;">とじる</button>
+      <button class="btn share" id="gacha10ShareBtn" style="margin-top:12px;">🐦 10れんの けっかをシェア</button>
+      <button class="btn gacha" id="gacha10CloseBtn" style="margin-top:8px;">とじる</button>
     </div>
   </div>
 </div>
@@ -959,6 +971,16 @@
     <button class="btn" id="zukanShareSaveBtn">📥 ほぞん</button>
     <button class="btn share" id="zukanShareXBtn">🐦 Xでシェア</button>
     <button class="btn modal-close" id="zukanShareCloseBtn">とじる</button>
+  </div>
+</div>
+
+<!-- ガチャ結果シェアカード（単発・10連・金の手紙 共通） -->
+<div class="modal-overlay" id="gachaShareOverlay" style="display:none;">
+  <div class="modal-box snap-modal">
+    <div id="gachaShareBody"></div>
+    <button class="btn" id="gachaShareSaveBtn">📥 ほぞん</button>
+    <button class="btn share" id="gachaShareXBtn">🐦 Xでシェア</button>
+    <button class="btn modal-close" id="gachaShareCloseBtn">とじる</button>
   </div>
 </div>
 
@@ -2681,6 +2703,8 @@
      'zukanTitle', 'zukanGrid', 'modalOverlay', 'modalTitle', 'modalList', 'modalCloseBtn',
      'gachaOverlay', 'gachaGrass', 'gachaSkipBtn', 'gachaResult', 'gachaResultRank', 'gachaResultName',
      'gachaResultTalents', 'gachaResultSkill', 'gachaResultFlavor', 'gachaResultNote', 'gachaCloseBtn',
+     'gachaResultShareBtn', 'gacha10ShareBtn',
+     'gachaShareOverlay', 'gachaShareBody', 'gachaShareSaveBtn', 'gachaShareXBtn', 'gachaShareCloseBtn',
      'charOverlay', 'charDetailBody', 'charCloseBtn', 'charZoomOverlay', 'charZoomImg',
      'exportShowBtn', 'exportBox', 'exportTextarea', 'exportCopyBtn', 'exportMsg',
      'importShowBtn', 'importBox', 'importTextarea', 'importRunBtn', 'importMsg',
@@ -3671,6 +3695,266 @@
     shareZukanFallback(shareText, gameUrl);
   }
 
+  /* ============================================================
+   * ガチャ結果シェアカード（単発・10連・金の手紙 共通。背景はスナップ／ずかんカードと同じdrawBandSky＋drawGroundStripを流用）
+   * ============================================================ */
+  // 自慢文言：UR＞SSR＞SR＞それ以外の順で分岐（単発・10連の最高レアどちらにも使う共通ヘルパー）
+  function gachaShareBrag(rarity, name) {
+    if (rarity === 'UR') return '🌈 でんせつの' + name + 'に あえた！';
+    if (rarity === 'SSR') return '🥇 ' + name + 'が なかまに なったよ！';
+    if (rarity === 'SR') return '⚪ ' + name + 'が きてくれた！';
+    return '🎋 あたらしい なかまが きたよ！';
+  }
+  function buildGachaShareTextSingle(chosen, rarity) {
+    return gachaShareBrag(rarity, chosen.name) + '\n' +
+      'きみは だれが きた？\n' +
+      '#笹友キャラバン #パンダさんパワー';
+  }
+  function buildGachaShareTextTen(results) {
+    let best = results[0];
+    results.forEach(function (r) { if (charRarityRank(r.rarity) >= charRarityRank(best.rarity)) best = r; });
+    return '🎋 10れん いってみた！\n' +
+      gachaShareBrag(best.rarity, best.chosen.name) + '\n' +
+      'きみは だれが きた？\n' +
+      '#笹友キャラバン #パンダさんパワー';
+  }
+
+  // 単発（金の手紙も同じ扱い）のシェアカード：引いた子を中央に大きく＋レア色の枠＋レアバッジ＋名前＋得意＋結果メッセージ
+  async function drawGachaShareCardSingle(ctx, w, h, chosen, rarity, isNew, awakenLv) {
+    const s = w / SNAP_W;
+    ctx.imageSmoothingEnabled = false;
+    const band = getCurrentBand();
+    drawBandSky(ctx, w, h, band);
+
+    try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch (e) { /* フォント待ちに失敗しても既定フォントで続行 */ }
+
+    const groundH = 70 * s;
+    const ground = await loadSnapImage('assets/scene/ground.png');
+    drawGroundStrip(ctx, w, h, groundH, ground);
+
+    const color = CHAR_RARITY_COLOR[rarity] || '#4aa3ff';
+
+    ctx.textAlign = 'center';
+    ctx.font = 'bold ' + Math.round(30 * s) + "px 'DotGothic16', sans-serif";
+    ctx.lineWidth = Math.max(2, 6 * s);
+    ctx.strokeStyle = 'rgba(20,10,15,.75)';
+    const title = isNew ? '🎋 なかまが きたよ！' : '🎋 かぶり だったよ！';
+    ctx.strokeText(title, w / 2, 54 * s);
+    ctx.fillStyle = '#fff';
+    ctx.fillText(title, w / 2, 54 * s);
+
+    // キャラ画像を中央に大きく＋レア色の枠
+    const img = await loadSnapImage(chosen.image || IMG);
+    const boxW = 300 * s, boxH = 300 * s;
+    const boxLeft = w / 2 - boxW / 2;
+    const boxTop = 88 * s;
+    ctx.fillStyle = 'rgba(255,255,255,.85)';
+    ctx.fillRect(boxLeft, boxTop, boxW, boxH);
+    ctx.lineWidth = Math.max(3, 8 * s);
+    ctx.strokeStyle = color;
+    ctx.strokeRect(boxLeft, boxTop, boxW, boxH);
+    if (img && img.width) {
+      const ih = boxH * 0.82;
+      const iw = img.width * (ih / img.height);
+      ctx.drawImage(img, w / 2 - iw / 2, boxTop + boxH * 0.09, iw, ih);
+    }
+
+    // レアバッジ（枠の左上に載せる）
+    ctx.font = 'bold ' + Math.round(22 * s) + "px 'DotGothic16', sans-serif";
+    const badgeW = ctx.measureText(rarity).width + 20 * s;
+    const badgeH = 32 * s;
+    const badgeLeft = boxLeft - 4 * s, badgeTop = boxTop - 12 * s;
+    ctx.fillStyle = color;
+    ctx.fillRect(badgeLeft, badgeTop, badgeW, badgeH);
+    ctx.lineWidth = Math.max(1.5, 3 * s);
+    ctx.strokeStyle = 'rgba(20,10,15,.7)';
+    ctx.strokeRect(badgeLeft, badgeTop, badgeW, badgeH);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#fff';
+    ctx.fillText(rarity, badgeLeft + 10 * s, badgeTop + badgeH * 0.72);
+
+    // 名前・得意
+    ctx.textAlign = 'center';
+    ctx.font = 'bold ' + Math.round(34 * s) + "px 'DotGothic16', sans-serif";
+    ctx.lineWidth = Math.max(2, 6 * s);
+    ctx.strokeStyle = 'rgba(20,10,15,.75)';
+    ctx.strokeText(chosen.name, w / 2, boxTop + boxH + 44 * s);
+    ctx.fillStyle = '#fff';
+    ctx.fillText(chosen.name, w / 2, boxTop + boxH + 44 * s);
+
+    ctx.font = Math.round(18 * s) + "px 'DotGothic16', sans-serif";
+    ctx.lineWidth = Math.max(1.5, 4 * s);
+    const talentsText = (chosen.talents || []).join('・');
+    ctx.strokeText(talentsText, w / 2, boxTop + boxH + 74 * s);
+    ctx.fillText(talentsText, w / 2, boxTop + boxH + 74 * s);
+
+    // 結果メッセージ（はじめまして／かぶり→覚醒）
+    const resultText = isNew ? 'なかまに なったよ！' : ('かくせい Lv' + awakenLv + 'に なったよ！');
+    ctx.font = 'bold ' + Math.round(24 * s) + "px 'DotGothic16', sans-serif";
+    ctx.lineWidth = Math.max(2, 5 * s);
+    ctx.strokeStyle = 'rgba(20,10,15,.8)';
+    ctx.strokeText(resultText, w / 2, boxTop + boxH + 110 * s);
+    ctx.fillStyle = '#fff566';
+    ctx.fillText(resultText, w / 2, boxTop + boxH + 110 * s);
+
+    ctx.textAlign = 'right';
+    ctx.font = Math.round(16 * s) + "px 'DotGothic16', sans-serif";
+    ctx.fillStyle = 'rgba(255,255,255,.9)';
+    ctx.fillText('🐼 笹友キャラバン　https://fuyutosan.github.io/sasatomo-caravan/', w - 20 * s, h - 16 * s);
+  }
+
+  // 10連のシェアカード：10体を5列×2行のグリッドで（ずかんカードのグリッド計算式を流用）＋最高レアの子だけ一回り大きく光る枠で強調
+  async function drawGachaShareCardTen(ctx, w, h, results) {
+    const s = w / SNAP_W;
+    ctx.imageSmoothingEnabled = false;
+    const band = getCurrentBand();
+    drawBandSky(ctx, w, h, band);
+
+    try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch (e) { /* フォント待ちに失敗しても既定フォントで続行 */ }
+
+    const groundH = 40 * s;
+    const ground = await loadSnapImage('assets/scene/ground.png');
+    drawGroundStrip(ctx, w, h, groundH, ground);
+
+    let bestRarity = 'N';
+    results.forEach(function (r) { if (charRarityRank(r.rarity) > charRarityRank(bestRarity)) bestRarity = r.rarity; });
+
+    ctx.textAlign = 'center';
+    ctx.font = 'bold ' + Math.round(36 * s) + "px 'DotGothic16', sans-serif";
+    ctx.lineWidth = Math.max(2, 7 * s);
+    ctx.strokeStyle = 'rgba(20,10,15,.75)';
+    ctx.strokeText('🎋 10れん けっか！', w / 2, 54 * s);
+    ctx.fillStyle = '#fff';
+    ctx.fillText('🎋 10れん けっか！', w / 2, 54 * s);
+
+    // グリッド（5列×2行。なかまずかんカードと同じ座標計算の考え方を10枠ぶんに合わせる）
+    const cols = 5, rows = 2;
+    const gridTop = 82 * s;
+    const gridBottom = h - groundH - 14 * s;
+    const cellW = w / cols;
+    const cellH = (gridBottom - gridTop) / rows;
+
+    const imgs = await Promise.all(results.map(function (r) { return loadSnapImage(r.chosen.image || IMG); }));
+
+    ctx.textAlign = 'center';
+    results.forEach(function (r, i) {
+      const col = i % cols, row = Math.floor(i / cols);
+      const cx = cellW * col + cellW / 2;
+      const cy = gridTop + cellH * row + cellH / 2;
+      const color = CHAR_RARITY_COLOR[r.rarity] || '#4aa3ff';
+      const isBest = r.rarity === bestRarity;
+      const img = imgs[i];
+      const iconH = cellH * (isBest ? 0.64 : 0.54);
+      const iconY = cy - cellH * 0.34 + 7 * s;
+
+      if (img && img.width) {
+        const iconW = img.width * (iconH / img.height);
+        const boxW = Math.min(cellW * (isBest ? 0.94 : 0.86), iconW + 18 * s);
+        const boxH = iconH + 14 * s;
+        const boxLeft = cx - boxW / 2;
+        const boxTop = iconY - 7 * s;
+        if (isBest) { ctx.save(); ctx.shadowColor = color; ctx.shadowBlur = 20 * s; }
+        ctx.fillStyle = 'rgba(255,255,255,.78)';
+        ctx.fillRect(boxLeft, boxTop, boxW, boxH);
+        ctx.lineWidth = isBest ? Math.max(2.5, 5 * s) : Math.max(1.5, 3 * s);
+        ctx.strokeStyle = color;
+        ctx.strokeRect(boxLeft, boxTop, boxW, boxH);
+        if (isBest) ctx.restore();
+        ctx.drawImage(img, cx - iconW / 2, iconY, iconW, iconH);
+      }
+
+      ctx.font = (isBest ? 'bold ' : '') + Math.round((isBest ? 14 : 12) * s) + "px 'DotGothic16', sans-serif";
+      ctx.lineWidth = Math.max(1, 3 * s);
+      ctx.strokeStyle = 'rgba(20,10,15,.7)';
+      ctx.fillStyle = '#fff';
+      ctx.strokeText(r.chosen.name, cx, cy + cellH * 0.42);
+      ctx.fillText(r.chosen.name, cx, cy + cellH * 0.42);
+    });
+
+    ctx.textAlign = 'right';
+    ctx.font = Math.round(16 * s) + "px 'DotGothic16', sans-serif";
+    ctx.fillStyle = 'rgba(255,255,255,.9)';
+    ctx.fillText('🐼 笹友キャラバン　https://fuyutosan.github.io/sasatomo-caravan/', w - 20 * s, h - 12 * s);
+  }
+
+  async function renderGachaShareCardSingle(chosen, rarity, isNew, awakenLv, w, h) {
+    w = w || SNAP_W; h = h || SNAP_H;
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    await drawGachaShareCardSingle(canvas.getContext('2d'), w, h, chosen, rarity, isNew, awakenLv);
+    return canvas;
+  }
+  async function renderGachaShareCardTen(results, w, h) {
+    w = w || SNAP_W; h = h || SNAP_H;
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    await drawGachaShareCardTen(canvas.getContext('2d'), w, h, results);
+    return canvas;
+  }
+
+  let currentGachaShareCanvas = null;
+  let currentGachaShareText = '';
+  async function openGachaShareSingle(chosen, rarity, isNew, awakenLv) {
+    currentGachaShareCanvas = null;
+    currentGachaShareText = buildGachaShareTextSingle(chosen, rarity);
+    el.gachaShareBody.innerHTML = '<p class="snap-empty">えがいてるよ…</p>';
+    el.gachaShareOverlay.style.display = 'flex';
+    const canvas = await renderGachaShareCardSingle(chosen, rarity, isNew, awakenLv, SNAP_W, SNAP_H);
+    if (el.gachaShareOverlay.style.display !== 'flex') return; // 描画中に閉じられていたら反映しない
+    el.gachaShareBody.innerHTML = '';
+    el.gachaShareBody.appendChild(canvas);
+    currentGachaShareCanvas = canvas;
+  }
+  async function openGachaShareTen(results) {
+    currentGachaShareCanvas = null;
+    currentGachaShareText = buildGachaShareTextTen(results);
+    el.gachaShareBody.innerHTML = '<p class="snap-empty">えがいてるよ…</p>';
+    el.gachaShareOverlay.style.display = 'flex';
+    const canvas = await renderGachaShareCardTen(results, SNAP_W, SNAP_H);
+    if (el.gachaShareOverlay.style.display !== 'flex') return;
+    el.gachaShareBody.innerHTML = '';
+    el.gachaShareBody.appendChild(canvas);
+    currentGachaShareCanvas = canvas;
+  }
+  function closeGachaShare() {
+    el.gachaShareOverlay.style.display = 'none';
+    el.gachaShareBody.innerHTML = '';
+    currentGachaShareCanvas = null;
+    currentGachaShareText = '';
+  }
+  function downloadGachaShareCard() {
+    if (!currentGachaShareCanvas) return;
+    saveCanvasImage(currentGachaShareCanvas, 'sasatomo-gacha-' + Date.now());
+  }
+  function shareGachaShareFallback() {
+    downloadGachaShareCard();
+    const gameUrl = 'https://fuyutosan.github.io/sasatomo-caravan/';
+    shareToX(currentGachaShareText, gameUrl);
+    showToast('がぞうを ぽすとに そえてね');
+  }
+  async function shareGachaShareCard() {
+    if (!currentGachaShareCanvas) return;
+    const shareText = currentGachaShareText;
+    const gameUrl = 'https://fuyutosan.github.io/sasatomo-caravan/';
+
+    if (!navigator.share || !navigator.canShare) { shareGachaShareFallback(); return; }
+
+    let blob = null;
+    try { blob = await new Promise(function (resolve) { currentGachaShareCanvas.toBlob(resolve, 'image/png'); }); } catch (e) { blob = null; }
+    if (blob) {
+      const file = new File([blob], 'sasatomo-gacha.png', { type: 'image/png' });
+      if (navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], text: shareText });
+          return;
+        } catch (e) {
+          if (e && e.name === 'AbortError') return; // ユーザーがキャンセルしただけ→なにもしない
+        }
+      }
+    }
+    shareGachaShareFallback();
+  }
+
   function renderAll() {
     renderHeader();
     renderTownBar();
@@ -3808,12 +4092,14 @@
     const rarity = pickWeighted(BALANCE.rosterRates);
     const pool = GACHA_POOL.filter(function (c) { return c.rarity === rarity; });
     const chosen = pickRandom(pool);
+    const wasOwned = !!state.owned[chosen.id];
     const noteText = obtainCharacter(chosen);
+    const awakenLv = state.owned[chosen.id] ? (state.owned[chosen.id].awaken || 0) : 0;
     state.omukaePt = (state.omukaePt || 0) + 1; // ガチャ1回ごとに おむかえpt +1
 
     renderHeader(); renderGachaPanel(); renderZukan(); renderPartyPanel();
     saveState();
-    playGachaAnimation(chosen, rarity, noteText);
+    playGachaAnimation(chosen, rarity, noteText, !wasOwned, awakenLv);
   }
 
   const PITY_LABEL = { SSR: 'SSR', UR: 'UR' };
@@ -3846,7 +4132,7 @@
   }
 
   let gachaRevealTimer = null;
-  function playGachaAnimation(chosen, rarity, noteText) {
+  function playGachaAnimation(chosen, rarity, noteText, isNew, awakenLv) {
     el.gachaOverlay.style.display = 'flex';
     el.gachaResult.style.display = 'none';
     el.gachaGrass.style.display = '';
@@ -3878,6 +4164,9 @@
       el.gachaResultFlavor.textContent = chosen.flavor;
       el.gachaResultNote.textContent = noteText;
       el.gachaResultNote.style.display = noteText ? '' : 'none';
+      el.gachaResultShareBtn.classList.toggle('share-highlight', charRarityRank(rarity) >= charRarityRank('SSR'));
+      el.gachaResultShareBtn.classList.toggle('ur-highlight', rarity === 'UR');
+      el.gachaResultShareBtn.onclick = function () { openGachaShareSingle(chosen, rarity, isNew, awakenLv); };
       el.gachaResult.style.display = '';
     }
     gachaRevealTimer = setTimeout(reveal, 1200);
@@ -3953,6 +4242,10 @@
         (best.chosen.skill ? '<p class="gresult-skill">固有スキル「' + best.chosen.skill.name + '」' + best.chosen.skill.desc + '</p>' : '') +
         '<p class="gresult-flavor">' + best.chosen.flavor + '</p>';
 
+      el.gacha10ShareBtn.classList.toggle('share-highlight', charRarityRank(best.rarity) >= charRarityRank('SSR'));
+      el.gacha10ShareBtn.classList.toggle('ur-highlight', best.rarity === 'UR');
+      el.gacha10ShareBtn.onclick = function () { openGachaShareTen(results); };
+
       el.gacha10Result.style.display = '';
     }
     gachaRevealTimer = setTimeout(reveal, 1200);
@@ -3966,12 +4259,14 @@
     const rarity = pickWeighted(BALANCE.goldenLetterRates);
     const pool = GACHA_POOL.filter(function (c) { return c.rarity === rarity; });
     const chosen = pickRandom(pool);
+    const wasOwned = !!state.owned[chosen.id];
     const noteText = obtainCharacter(chosen);
+    const awakenLv = state.owned[chosen.id] ? (state.owned[chosen.id].awaken || 0) : 0;
     state.omukaePt = (state.omukaePt || 0) + 1;
 
     renderHeader(); renderGachaPanel(); renderZukan(); renderPartyPanel();
     saveState();
-    playGachaAnimation(chosen, rarity, noteText);
+    playGachaAnimation(chosen, rarity, noteText, !wasOwned, awakenLv);
     return { rarity: rarity, chosen: chosen }; // 動作確認用
   }
 
@@ -4293,6 +4588,11 @@
     el.zukanShareSaveBtn.addEventListener('click', downloadZukanCard);
     el.zukanShareXBtn.addEventListener('click', shareZukanCard);
 
+    el.gachaShareCloseBtn.addEventListener('click', closeGachaShare);
+    el.gachaShareOverlay.addEventListener('click', function (ev) { if (ev.target === el.gachaShareOverlay) closeGachaShare(); });
+    el.gachaShareSaveBtn.addEventListener('click', downloadGachaShareCard);
+    el.gachaShareXBtn.addEventListener('click', shareGachaShareCard);
+
     el.zukanGrid.addEventListener('click', function (ev) {
       const cellEl = ev.target.closest('[data-id]');
       if (!cellEl) return;
@@ -4512,6 +4812,20 @@
     updateBossPassiveDecay: updateBossPassiveDecay,
     saveCanvasImage: saveCanvasImage,
     downloadSnap: downloadSnap,
+    drawGachaShareCardSingle: drawGachaShareCardSingle,
+    drawGachaShareCardTen: drawGachaShareCardTen,
+    renderGachaShareCardSingle: renderGachaShareCardSingle,
+    renderGachaShareCardTen: renderGachaShareCardTen,
+    buildGachaShareTextSingle: buildGachaShareTextSingle,
+    buildGachaShareTextTen: buildGachaShareTextTen,
+    gachaShareBrag: gachaShareBrag,
+    openGachaShareSingle: openGachaShareSingle,
+    openGachaShareTen: openGachaShareTen,
+    closeGachaShare: closeGachaShare,
+    downloadGachaShareCard: downloadGachaShareCard,
+    shareGachaShareCard: shareGachaShareCard,
+    charRarityRank: charRarityRank,
+    playGachaAnimation: playGachaAnimation,
   };
 
   window.addEventListener('DOMContentLoaded', function () { init(); });
