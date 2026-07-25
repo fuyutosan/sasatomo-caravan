@@ -645,6 +645,8 @@
   .snap-modal { max-width: 380px; text-align: center; }
   #snapDetailBody canvas { width: 100%; height: auto; display: block; border: 2px solid var(--dark); }
   .snap-modal .btn { margin-top: 8px; }
+  #zukanShareBtn { margin-bottom: 10px; }
+  #zukanShareBody canvas { width: 100%; height: auto; display: block; border: 2px solid var(--dark); }
 </style>
 </head>
 <body>
@@ -854,6 +856,7 @@
     <div class="tab" id="tab-zukan">
       <section class="card">
         <h2 id="zukanTitle">📖 なかまずかん（0／15）</h2>
+        <button class="btn share" id="zukanShareBtn">📸 ずかんをシェア</button>
         <div class="zgrid" id="zukanGrid"></div>
         <p class="zsmall">おむかえした子はここに記録されるよ</p>
       </section>
@@ -923,6 +926,16 @@
     <button class="btn" id="snapSaveBtn">📥 ほぞん</button>
     <button class="btn share" id="snapShareBtn">🐦 シェア</button>
     <button class="btn modal-close" id="snapCloseBtn">とじる</button>
+  </div>
+</div>
+
+<!-- なかまずかんシェアカード（ずかんタブ「📸 ずかんをシェア」から開く） -->
+<div class="modal-overlay" id="zukanShareOverlay" style="display:none;">
+  <div class="modal-box snap-modal">
+    <div id="zukanShareBody"></div>
+    <button class="btn" id="zukanShareSaveBtn">📥 ほぞん</button>
+    <button class="btn share" id="zukanShareXBtn">🐦 Xでシェア</button>
+    <button class="btn modal-close" id="zukanShareCloseBtn">とじる</button>
   </div>
 </div>
 
@@ -1749,18 +1762,34 @@
     return SNAP_IMG_CACHE[src];
   }
 
-  // 帯の空（グラデ）＋山＋地面＋幌馬車＋当時の編成＋見出し＋日付を1枚に合成する（w×hを渡せばサムネにも拡大表示にも使える純関数）
-  async function drawSnapScene(ctx, w, h, recipe) {
-    const s = w / SNAP_W;
-    ctx.imageSmoothingEnabled = false;
-
-    const colors = SNAP_BAND_SKY[recipe.band] || SNAP_BAND_SKY.day;
+  // 帯の空グラデだけを描く（スナップ・ずかんシェアカードの両方の背景で共用する純関数）
+  function drawBandSky(ctx, w, h, band) {
+    const colors = SNAP_BAND_SKY[band] || SNAP_BAND_SKY.day;
     const grad = ctx.createLinearGradient(0, 0, 0, h);
     grad.addColorStop(0, colors[0]);
     grad.addColorStop(0.55, colors[1]);
     grad.addColorStop(1, colors[2]);
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, w, h);
+  }
+  // 地面ストリップだけを描く（ground.pngをタイル敷き。画像未読込時は地面色で塗りつぶし）。こちらもスナップ・ずかんシェアカード共用
+  function drawGroundStrip(ctx, w, h, groundH, ground) {
+    if (ground && ground.width) {
+      const gw = ground.width * (groundH / ground.height);
+      let x = 0;
+      while (x < w) { ctx.drawImage(ground, x, h - groundH, gw, groundH); x += gw; }
+    } else {
+      ctx.fillStyle = '#6b4a2f';
+      ctx.fillRect(0, h - groundH, w, groundH);
+    }
+  }
+
+  // 帯の空（グラデ）＋山＋地面＋幌馬車＋当時の編成＋見出し＋日付を1枚に合成する（w×hを渡せばサムネにも拡大表示にも使える純関数）
+  async function drawSnapScene(ctx, w, h, recipe) {
+    const s = w / SNAP_W;
+    ctx.imageSmoothingEnabled = false;
+
+    drawBandSky(ctx, w, h, recipe.band);
 
     try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch (e) { /* フォント待ちに失敗しても既定フォントで続行 */ }
 
@@ -1778,14 +1807,7 @@
     }
 
     const groundH = 130 * s;
-    if (ground && ground.width) {
-      const gw = ground.width * (groundH / ground.height);
-      let x = 0;
-      while (x < w) { ctx.drawImage(ground, x, h - groundH, gw, groundH); x += gw; }
-    } else {
-      ctx.fillStyle = '#6b4a2f';
-      ctx.fillRect(0, h - groundH, w, groundH);
-    }
+    drawGroundStrip(ctx, w, h, groundH, ground);
 
     if (wagon && wagon.width) {
       const wh = 220 * s;
@@ -2559,6 +2581,7 @@
      'bossMoyamoyaEl', 'bossHpFill', 'bossHpText', 'bossTimerText', 'bossSmileForceText',
      'bossResultTitle', 'bossResultText', 'bossHintText', 'bossResultRewards', 'bossCloseBtn',
      'snapCard', 'snapGrid', 'snapOverlay', 'snapDetailBody', 'snapSaveBtn', 'snapShareBtn', 'snapCloseBtn',
+     'zukanShareBtn', 'zukanShareOverlay', 'zukanShareBody', 'zukanShareSaveBtn', 'zukanShareXBtn', 'zukanShareCloseBtn',
      'chatBubbleEl', 'campfireEl',
      'journeyBadge', 'journeyCard', 'journeyBtn'
     ].forEach(function (id) { el[id] = q(id); });
@@ -3196,6 +3219,229 @@
   }
   function closeCharZoom() { el.charZoomOverlay.style.display = 'none'; el.charZoomImg.src = ''; }
 
+  /* ============================================================
+   * なかまずかんシェアカード（展望アイデア帳・ふゆとさん発案「誰持ってる？」の見せ合いっこ）
+   * スナップと同じ「毎回canvasで描き直す・画像は保存しない」方針を流用する
+   * ============================================================ */
+  const ZUKAN_SILHOUETTE_CACHE = {};
+  // 所持キャラの画像を「かたち」だけ残して黒く塗りつぶす（source-inで元画像の透明部分はそのまま透明に保つ）
+  function getSilhouette(img, src) {
+    if (!img || !img.width) return null;
+    if (!ZUKAN_SILHOUETTE_CACHE[src]) {
+      const c = document.createElement('canvas');
+      c.width = img.width; c.height = img.height;
+      const cctx = c.getContext('2d');
+      cctx.drawImage(img, 0, 0);
+      cctx.globalCompositeOperation = 'source-in';
+      cctx.fillStyle = '#000';
+      cctx.fillRect(0, 0, c.width, c.height);
+      ZUKAN_SILHOUETTE_CACHE[src] = c;
+    }
+    return ZUKAN_SILHOUETTE_CACHE[src];
+  }
+
+  const ZUKAN_RARITY_ORDER_LIST = ['UR', 'SSR', 'SR', 'R', 'N'];
+  // レアごとの所持数／総数を UR→SSR→SR→R→N の順で返す（シェアカードの内訳行・自慢ポイント判定の両方で使う）
+  function zukanRarityBreakdown() {
+    const totals = {}, owned = {};
+    ZUKAN_RARITY_ORDER_LIST.forEach(function (r) { totals[r] = 0; owned[r] = 0; });
+    ALL_CHARS.forEach(function (def) {
+      totals[def.rarity]++;
+      if (state.owned[def.id]) owned[def.rarity]++;
+    });
+    return ZUKAN_RARITY_ORDER_LIST.map(function (r) { return { rarity: r, owned: owned[r], total: totals[r] }; });
+  }
+
+  // なかまずかんシェアカード（1200×630）を描く。ALL_CHARS_BY_RARITY（レア度順）を6列×5行に並べ、
+  // 所持＝顔つき＋レア色の枠、未所持＝シルエットで描き分ける。背景はスナップと同じ帯グラデ＋地面ストリップを流用
+  async function drawZukanCard(ctx, w, h) {
+    const s = w / SNAP_W;
+    ctx.imageSmoothingEnabled = false;
+    const band = getCurrentBand();
+    drawBandSky(ctx, w, h, band);
+
+    try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch (e) { /* フォント待ちに失敗しても既定フォントで続行 */ }
+
+    const groundH = 54 * s;
+    const ground = await loadSnapImage('assets/scene/ground.png');
+    drawGroundStrip(ctx, w, h, groundH, ground);
+
+    const total = ALL_CHARS.length;
+    const ownedCount = Object.keys(state.owned).length;
+
+    ctx.textAlign = 'center';
+    ctx.font = 'bold ' + Math.round(42 * s) + "px 'DotGothic16', sans-serif";
+    ctx.lineWidth = Math.max(2, 7 * s);
+    ctx.strokeStyle = 'rgba(20,10,15,.75)';
+    ctx.strokeText('わたしのなかまずかん', w / 2, 58 * s);
+    ctx.fillStyle = '#fff';
+    ctx.fillText('わたしのなかまずかん', w / 2, 58 * s);
+
+    ctx.font = Math.round(24 * s) + "px 'DotGothic16', sans-serif";
+    ctx.lineWidth = Math.max(2, 5 * s);
+    const subtitle = ownedCount + '／' + total + '体 あつめたよ！';
+    ctx.strokeText(subtitle, w / 2, 92 * s);
+    ctx.fillText(subtitle, w / 2, 92 * s);
+
+    // グリッド（6列×5行・ALL_CHARS_BY_RARITY＝既存のずかんタブと同じレア度順）
+    const cols = 6, rows = 5;
+    const gridTop = 112 * s;
+    const rarityLineY = h - groundH - 14 * s;
+    const gridBottom = rarityLineY - 26 * s;
+    const cellW = w / cols;
+    const cellH = (gridBottom - gridTop) / rows;
+
+    const imgs = await Promise.all(ALL_CHARS_BY_RARITY.map(function (def) {
+      return loadSnapImage(def.image || IMG);
+    }));
+
+    ctx.textAlign = 'center';
+    ALL_CHARS_BY_RARITY.forEach(function (def, i) {
+      const col = i % cols, row = Math.floor(i / cols);
+      const cx = cellW * col + cellW / 2;
+      const cy = gridTop + cellH * row + cellH / 2;
+      const owned = !!state.owned[def.id];
+      const img = imgs[i];
+      const iconH = cellH * 0.56;
+      const iconY = cy - cellH * 0.32 + 7 * s;
+
+      if (img && img.width) {
+        const iconW = img.width * (iconH / img.height);
+        if (owned) {
+          const color = CHAR_RARITY_COLOR[def.rarity] || '#4aa3ff';
+          const boxW = Math.min(cellW * 0.86, iconW + 18 * s);
+          const boxH = iconH + 14 * s;
+          ctx.fillStyle = 'rgba(255,255,255,.72)';
+          ctx.fillRect(cx - boxW / 2, cy - cellH * 0.32, boxW, boxH);
+          ctx.lineWidth = Math.max(1.5, 3 * s);
+          ctx.strokeStyle = color;
+          ctx.strokeRect(cx - boxW / 2, cy - cellH * 0.32, boxW, boxH);
+          ctx.drawImage(img, cx - iconW / 2, iconY, iconW, iconH);
+        } else {
+          const sil = getSilhouette(img, def.image || IMG);
+          if (sil) {
+            ctx.save();
+            ctx.globalAlpha = 0.4;
+            ctx.drawImage(sil, cx - iconW / 2, iconY, iconW, iconH);
+            ctx.restore();
+          }
+        }
+      }
+
+      ctx.font = Math.round(13 * s) + "px 'DotGothic16', sans-serif";
+      ctx.lineWidth = Math.max(1, 3 * s);
+      ctx.strokeStyle = 'rgba(20,10,15,.7)';
+      ctx.fillStyle = owned ? '#fff' : 'rgba(255,255,255,.55)';
+      const label = owned ? def.name : '？？？';
+      ctx.strokeText(label, cx, cy + cellH * 0.40);
+      ctx.fillText(label, cx, cy + cellH * 0.40);
+    });
+
+    // レア内訳（UR→SSR→SR→R→Nの順・各レアの色を文字色に反映）
+    const breakdown = zukanRarityBreakdown();
+    ctx.font = Math.round(19 * s) + "px 'DotGothic16', sans-serif";
+    ctx.lineWidth = Math.max(1.5, 3 * s);
+    const gap = 26 * s;
+    const texts = breakdown.map(function (b) { return b.rarity + ' ' + b.owned + '/' + b.total; });
+    const widths = texts.map(function (t) { return ctx.measureText(t).width; });
+    const totalW = widths.reduce(function (a, b) { return a + b; }, 0) + gap * (texts.length - 1);
+    let bx = w / 2 - totalW / 2;
+    ctx.textAlign = 'left';
+    breakdown.forEach(function (b, i) {
+      ctx.strokeStyle = 'rgba(20,10,15,.7)';
+      ctx.fillStyle = CHAR_RARITY_COLOR[b.rarity] || '#fff';
+      ctx.strokeText(texts[i], bx, rarityLineY);
+      ctx.fillText(texts[i], bx, rarityLineY);
+      bx += widths[i] + gap;
+    });
+
+    ctx.textAlign = 'right';
+    ctx.font = Math.round(16 * s) + "px 'DotGothic16', sans-serif";
+    ctx.fillStyle = 'rgba(255,255,255,.9)';
+    ctx.fillText('🐼 笹友キャラバン　https://fuyutosan.github.io/sasatomo-caravan/', w - 20 * s, h - 16 * s);
+  }
+
+  async function renderZukanCard(w, h) {
+    w = w || SNAP_W; h = h || SNAP_H;
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    await drawZukanCard(canvas.getContext('2d'), w, h);
+    return canvas;
+  }
+
+  // シェア文の「自慢ポイント」：でんせつ(UR)を持っていれば最優先→なければSSRのエース→どちらもなければ旅のはじまり
+  function zukanShareBrag() {
+    const urOwned = ALL_CHARS_BY_RARITY.filter(function (c) { return c.rarity === 'UR' && state.owned[c.id]; });
+    if (urOwned.length > 0) return 'でんせつの' + urOwned[0].name + 'がうちにいるよ✨';
+    const ssrOwned = ALL_CHARS_BY_RARITY.filter(function (c) { return c.rarity === 'SSR' && state.owned[c.id]; });
+    if (ssrOwned.length > 0) return ssrOwned[0].name + 'がうちのエースだよ';
+    return 'まだ旅のはじまり。これから増やすんだ🎋';
+  }
+
+  function buildZukanShareText() {
+    const total = ALL_CHARS.length;
+    const ownedCount = Object.keys(state.owned).length;
+    return '🐼 わたしのなかまずかん、いま' + ownedCount + '/' + total + '体！\n' +
+      zukanShareBrag() + '\n' +
+      'きみは だれを おむかえした？\n' +
+      '#笹友キャラバン #パンダさんパワー';
+  }
+
+  let currentZukanCanvas = null;
+  async function openZukanShare() {
+    currentZukanCanvas = null;
+    el.zukanShareBody.innerHTML = '<p class="snap-empty">えがいてるよ…</p>';
+    el.zukanShareOverlay.style.display = 'flex';
+    const canvas = await renderZukanCard(SNAP_W, SNAP_H);
+    if (el.zukanShareOverlay.style.display !== 'flex') return; // 描画中に閉じられていたら反映しない
+    el.zukanShareBody.innerHTML = '';
+    el.zukanShareBody.appendChild(canvas);
+    currentZukanCanvas = canvas;
+  }
+  function closeZukanShare() {
+    el.zukanShareOverlay.style.display = 'none';
+    el.zukanShareBody.innerHTML = '';
+    currentZukanCanvas = null;
+  }
+  function downloadZukanCard() {
+    if (!currentZukanCanvas) return;
+    let dataUrl;
+    try { dataUrl = currentZukanCanvas.toDataURL('image/png'); } catch (e) { showToast('ほぞんできなかったよ…'); return; }
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = 'sasatomo-zukan-' + Date.now() + '.png';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+  function shareZukanFallback(shareText, gameUrl) {
+    downloadZukanCard();
+    shareToX(shareText, gameUrl);
+    showToast('がぞうを ぽすとに そえてね');
+  }
+  async function shareZukanCard() {
+    if (!currentZukanCanvas) return;
+    const shareText = buildZukanShareText();
+    const gameUrl = 'https://fuyutosan.github.io/sasatomo-caravan/';
+
+    if (!navigator.share || !navigator.canShare) { shareZukanFallback(shareText, gameUrl); return; }
+
+    let blob = null;
+    try { blob = await new Promise(function (resolve) { currentZukanCanvas.toBlob(resolve, 'image/png'); }); } catch (e) { blob = null; }
+    if (blob) {
+      const file = new File([blob], 'sasatomo-zukan.png', { type: 'image/png' });
+      if (navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], text: shareText });
+          return;
+        } catch (e) {
+          if (e && e.name === 'AbortError') return; // ユーザーがキャンセルしただけ→なにもしない
+        }
+      }
+    }
+    shareZukanFallback(shareText, gameUrl);
+  }
+
   function renderAll() {
     renderHeader();
     renderTownBar();
@@ -3789,6 +4035,12 @@
     el.snapSaveBtn.addEventListener('click', downloadSnap);
     el.snapShareBtn.addEventListener('click', shareSnap);
 
+    el.zukanShareBtn.addEventListener('click', openZukanShare);
+    el.zukanShareCloseBtn.addEventListener('click', closeZukanShare);
+    el.zukanShareOverlay.addEventListener('click', function (ev) { if (ev.target === el.zukanShareOverlay) closeZukanShare(); });
+    el.zukanShareSaveBtn.addEventListener('click', downloadZukanCard);
+    el.zukanShareXBtn.addEventListener('click', shareZukanCard);
+
     el.zukanGrid.addEventListener('click', function (ev) {
       const cellEl = ev.target.closest('[data-id]');
       if (!cellEl) return;
@@ -3977,6 +4229,15 @@
     calcSegmentRewards: calcSegmentRewards,
     renderBossAreas: renderBossAreas,
     bossHpForArea: bossHpForArea,
+    drawZukanCard: drawZukanCard,
+    renderZukanCard: renderZukanCard,
+    zukanRarityBreakdown: zukanRarityBreakdown,
+    zukanShareBrag: zukanShareBrag,
+    buildZukanShareText: buildZukanShareText,
+    openZukanShare: openZukanShare,
+    closeZukanShare: closeZukanShare,
+    downloadZukanCard: downloadZukanCard,
+    shareZukanCard: shareZukanCard,
   };
 
   window.addEventListener('DOMContentLoaded', function () { init(); });
