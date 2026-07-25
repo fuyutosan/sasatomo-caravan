@@ -676,6 +676,19 @@
   }
   .char-zoom-overlay img { max-width: 90%; max-height: 90%; image-rendering: pixelated; }
 
+  /* ── アプリ内ブラウザでの保存案内（長押し保存モード。LINE等はa[download]が効かないため） ── */
+  .inapp-save-overlay {
+    position: fixed; inset: 0; background: rgba(6, 4, 8, .92); z-index: 260;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; gap: 14px;
+  }
+  .inapp-save-overlay img {
+    max-width: 90%; max-height: 68vh; image-rendering: pixelated; border: 2px solid #fff;
+    -webkit-touch-callout: default; -webkit-user-select: auto; user-select: auto;
+  }
+  .inapp-save-caption {
+    color: #fff; font-size: 13px; line-height: 1.8; text-align: center; white-space: pre-line; max-width: 320px;
+  }
+
   /* ── 旅のスナップ（記念アルバム） ── */
   .snap-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
   .snap-thumb { border: 2px solid var(--dark); cursor: pointer; overflow: hidden; background: #1a1a22; line-height: 0; }
@@ -965,6 +978,12 @@
 <!-- キャラ画像フルスクリーン拡大 -->
 <div class="char-zoom-overlay" id="charZoomOverlay" style="display:none;">
   <img id="charZoomImg" src="" alt="">
+</div>
+
+<!-- アプリ内ブラウザ（LINE等）向けの長押し保存案内 -->
+<div class="inapp-save-overlay" id="inappSaveOverlay" style="display:none;">
+  <div class="inapp-save-caption" id="inappSaveCaption"></div>
+  <img id="inappSaveImg" src="" alt="ほぞんするがぞう">
 </div>
 
 <!-- スナップ拡大モーダル（旅のスナップ） -->
@@ -2006,13 +2025,38 @@
     currentSnapRecipe = null;
     currentSnapCanvas = null;
   }
-  // canvasを画像として端末に保存する共通処理（スナップ・なかまずかんシェアカード両方で使う）。
+  // LINE/Facebook/Instagram/X等のアプリ内ブラウザ（WebView）を判定する。
+  // これらは a[download] や navigator.share が使えないことが多く、保存できたように見せかけて実は失敗する事故を防ぐため事前判定する。
+  function isInAppBrowser() {
+    const ua = navigator.userAgent || '';
+    if (/ Line\//i.test(ua)) return { detected: true, name: 'LINE' };
+    if (/FBAN|FBAV/i.test(ua)) return { detected: true, name: 'Facebook' };
+    if (/Instagram/i.test(ua)) return { detected: true, name: 'Instagram' };
+    if (/Twitter/i.test(ua)) return { detected: true, name: 'Twitter' };
+    return { detected: false, name: null };
+  }
+
+  // アプリ内ブラウザ向け：がぞうを画面いっぱいに表示して長押し保存を案内するオーバーレイ
+  function showInAppSaveOverlay(dataUrl, appName) {
+    el.inappSaveImg.src = dataUrl;
+    el.inappSaveCaption.textContent = appName === 'LINE'
+      ? 'ながおしして「がぞうを ほぞん」を えらんでね。\nうまくいかないときは、みぎうえの…から「ほかのアプリで ひらく」を おしてね'
+      : 'ながおしして「がぞうを ほぞん」を えらんでね';
+    el.inappSaveOverlay.style.display = 'flex';
+  }
+  function closeInAppSaveOverlay() {
+    el.inappSaveOverlay.style.display = 'none';
+    el.inappSaveImg.src = '';
+  }
+
+  // canvasを画像として端末に保存する共通処理（スナップ・なかまずかんシェアカード・ガチャ結果カードすべてで使う）。
   // iOS Safariは a[download] を無視して保存できないバグがあるため、
-  // 1) 共有シートから保存できるならnavigator.shareを最優先→2) それ以外はa[download]→
-  // 3) iOSでa[download]も効かない場合だけ新しいタブで開いて長押し保存を案内する、の順で試す。
+  // 1) 共有シートから保存できるならnavigator.shareを最優先→2) LINE等のアプリ内ブラウザは長押し保存の案内へ→
+  // 3) それ以外はa[download]→4) iOSでa[download]も効かない場合だけ新しいタブで開いて長押し保存を案内する、の順で試す。
   async function saveCanvasImage(canvas, filenameBase) {
     if (!canvas) return;
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const inApp = isInAppBrowser();
 
     if (navigator.canShare) {
       let blob = null;
@@ -2033,6 +2077,12 @@
 
     let dataUrl;
     try { dataUrl = canvas.toDataURL('image/png'); } catch (e) { showToast('ほぞんできなかったよ…'); return; }
+
+    if (inApp.detected) {
+      // LINE等のアプリ内ブラウザは a[download] が効かないため、最初から試さず長押し保存の案内に切り替える
+      showInAppSaveOverlay(dataUrl, inApp.name);
+      return;
+    }
 
     if (isIOS) {
       // iOS Safariは a[download] を無視するので、新しいタブで開いて長押し保存を案内する
@@ -2722,6 +2772,7 @@
      'gachaResultShareBtn', 'gacha10ShareBtn',
      'gachaShareOverlay', 'gachaShareBody', 'gachaShareSaveBtn', 'gachaShareXBtn', 'gachaShareCloseBtn',
      'charOverlay', 'charDetailBody', 'charCloseBtn', 'charZoomOverlay', 'charZoomImg',
+     'inappSaveOverlay', 'inappSaveImg', 'inappSaveCaption',
      'exportShowBtn', 'exportBox', 'exportTextarea', 'exportCopyBtn', 'exportMsg',
      'importShowBtn', 'importBox', 'importTextarea', 'importRunBtn', 'importMsg',
      'cloudCard', 'cloudDisconnectedBox', 'cloudConnectedBox', 'cloudConnectedName',
@@ -4770,6 +4821,7 @@
     el.charCloseBtn.addEventListener('click', closeCharDetail);
     el.charOverlay.addEventListener('click', function (ev) { if (ev.target === el.charOverlay) closeCharDetail(); });
     el.charZoomOverlay.addEventListener('click', closeCharZoom);
+    el.inappSaveOverlay.addEventListener('click', function (ev) { if (ev.target !== el.inappSaveImg) closeInAppSaveOverlay(); });
 
     el.exportShowBtn.addEventListener('click', showExportCode);
     el.exportCopyBtn.addEventListener('click', copyExportCode);
