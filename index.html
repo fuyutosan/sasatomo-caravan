@@ -608,7 +608,7 @@
   }
   .modal-box {
     background: #fff; border: 3px solid var(--dark); width: 100%; max-width: 340px;
-    max-height: 82vh; overflow-y: auto; padding: 14px;
+    max-height: 82vh; overflow-y: auto; overflow-x: hidden; padding: 14px;
     box-shadow: 6px 6px 0 rgba(0, 0, 0, .3);
   }
   .modal-box h3 { font-size: 15px; margin-bottom: 8px; }
@@ -643,7 +643,19 @@
     50% { box-shadow: 0 0 22px 6px #9aa0b0; }
   }
   #gachaSkipBtn { margin-top: 12px; background: #888; border-color: #555; box-shadow: 0 4px 0 #555; }
-  .gresult-rank { font-size: 13px; font-weight: bold; margin-top: 6px; }
+  #gachaResult, #gacha10Result {
+    overflow-y: auto; max-height: 80vh;
+    padding: 2px 6px; box-sizing: border-box;
+  }
+  .gresult-rank { font-size: 20px; font-weight: 800; margin-top: 6px; letter-spacing: .05em; }
+  .gresult-img {
+    display: block; margin: 6px auto 0; height: 140px; max-width: 100%;
+    object-fit: contain; image-rendering: pixelated;
+    border: 3px solid var(--dark); border-radius: 8px; background: #f2f7ef;
+    padding: 4px; box-sizing: border-box;
+  }
+  .gresult-img.ur-glow { animation: urGlow 1.4s linear infinite; }
+  .gresult-img.sr-glow { animation: srGlow 1.2s ease-in-out infinite; }
   .gresult-name { font-size: 20px; margin-top: 2px; }
   .gresult-talents { font-size: 11px; color: #4a6b4f; margin-top: 4px; }
   .gresult-flavor { font-size: 12px; margin-top: 8px; line-height: 1.6; }
@@ -653,11 +665,11 @@
   /* ── ガチャ結果シェアボタン（SSR以上だけ目立たせる） ── */
   .btn.share.share-highlight {
     border-color: #ffb400;
-    box-shadow: 0 4px 0 #000, 0 0 16px 5px rgba(255, 180, 0, .8);
+    box-shadow: 0 4px 0 #000, 0 0 10px 3px rgba(255, 180, 0, .8);
     animation: shareHighlightPulse 1.1s ease-in-out infinite;
   }
   .btn.share.share-highlight.ur-highlight { animation: shareHighlightPulse 1.1s ease-in-out infinite, urGlow 1.4s linear infinite; }
-  @keyframes shareHighlightPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+  @keyframes shareHighlightPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.02); } }
 
   /* ── ずかん詳細モーダル・画像拡大 ── */
   .char-detail { text-align: center; }
@@ -950,6 +962,7 @@
     <button class="btn" id="gachaSkipBtn">スキップ</button>
     <div id="gachaResult" style="display:none;">
       <div class="gresult-rank" id="gachaResultRank"></div>
+      <img class="gresult-img" id="gachaResultImg" src="" alt="">
       <div class="gresult-name" id="gachaResultName"></div>
       <div class="gresult-talents" id="gachaResultTalents"></div>
       <p class="gresult-skill" id="gachaResultSkill" style="display:none;"></p>
@@ -2767,7 +2780,7 @@
      'gacha10PullBtn', 'gacha10Result', 'gacha10Grid', 'gacha10Best', 'gacha10CloseBtn',
      'goldenLetterText', 'goldenLetterBtn',
      'zukanTitle', 'zukanGrid', 'modalOverlay', 'modalTitle', 'modalList', 'modalCloseBtn',
-     'gachaOverlay', 'gachaGrass', 'gachaSkipBtn', 'gachaResult', 'gachaResultRank', 'gachaResultName',
+     'gachaOverlay', 'gachaGrass', 'gachaSkipBtn', 'gachaResult', 'gachaResultRank', 'gachaResultImg', 'gachaResultName',
      'gachaResultTalents', 'gachaResultSkill', 'gachaResultFlavor', 'gachaResultNote', 'gachaCloseBtn',
      'gachaResultShareBtn', 'gacha10ShareBtn',
      'gachaShareOverlay', 'gachaShareBody', 'gachaShareSaveBtn', 'gachaShareXBtn', 'gachaShareCloseBtn',
@@ -4334,8 +4347,13 @@
       el.gachaGrass.classList.remove('shaking', 'ur-rainbow', 'sr-metal');
       el.gachaGrass.style.display = 'none';
       el.gachaSkipBtn.style.display = 'none';
-      el.gachaResultRank.textContent = rarity + '（' + chosen.talents.join('・') + '）';
+      el.gachaResultRank.textContent = rarity;
       el.gachaResultRank.style.color = CHAR_RARITY_COLOR[rarity];
+      el.gachaResultImg.src = chosen.image || IMG;
+      el.gachaResultImg.alt = chosen.name;
+      el.gachaResultImg.style.borderColor = CHAR_RARITY_COLOR[rarity];
+      el.gachaResultImg.classList.toggle('ur-glow', rarity === 'UR');
+      el.gachaResultImg.classList.toggle('sr-glow', rarity === 'SR');
       el.gachaResultName.textContent = chosen.name;
       el.gachaResultTalents.textContent = chosen.talents.join('・');
       if (chosen.skill) {
@@ -4420,8 +4438,11 @@
       let best = results[0];
       results.forEach(function (r) { if (charRarityRank(r.rarity) >= charRarityRank(best.rarity)) best = r; });
       el.gacha10Best.innerHTML =
-        '<div class="gresult-rank" style="color:' + CHAR_RARITY_COLOR[best.rarity] + ';">' + best.rarity + '（' + best.chosen.talents.join('・') + '）</div>' +
+        '<div class="gresult-rank" style="color:' + CHAR_RARITY_COLOR[best.rarity] + ';">' + best.rarity + '</div>' +
+        '<img class="gresult-img' + (best.rarity === 'UR' ? ' ur-glow' : best.rarity === 'SR' ? ' sr-glow' : '') +
+        '" style="border-color:' + CHAR_RARITY_COLOR[best.rarity] + ';" src="' + (best.chosen.image || IMG) + '" alt="' + best.chosen.name + '">' +
         '<div class="gresult-name">' + best.chosen.name + '</div>' +
+        '<div class="gresult-talents">' + best.chosen.talents.join('・') + '</div>' +
         (best.chosen.skill ? '<p class="gresult-skill">固有スキル「' + best.chosen.skill.name + '」' + best.chosen.skill.desc + '</p>' : '') +
         '<p class="gresult-flavor">' + best.chosen.flavor + '</p>';
 
