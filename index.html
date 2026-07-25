@@ -187,7 +187,7 @@
   .caravan { position: absolute; bottom: 54px; left: 16px; display: flex; align-items: flex-end; gap: 6px; z-index: 2; transition: filter 2.5s ease; }
   .wagonwrap { position: relative; }
   .wagon { width: 118px; display: block; image-rendering: pixelated; animation: bob .7s ease-in-out infinite; animation-delay: .1s; }
-  .wagonwrap .sasa { position: absolute; top: -12px; right: 4px; font-size: 18px; letter-spacing: -6px; }
+  /* 笹は馬車の画像に描かれているので、絵文字の飾りは廃止（2026-07-25） */
 
   .panda-wrap { display: inline-block; }
   .panda-wrap.mirrored { transform: scaleX(-1); }
@@ -735,7 +735,6 @@
     </div>
     <div class="caravan" id="caravanEl">
       <div class="wagonwrap">
-        <span class="sasa">🎋🎋</span>
         <img class="wagon" src="assets/scene/wagon.png" alt="ほろ馬車">
       </div>
     </div>
@@ -2866,7 +2865,7 @@
   function renderScene() {
     const members = state.party.filter(Boolean);
     const lv = wagonLevel();
-    let html = '<div class="wagonwrap"><span class="sasa">🎋🎋</span>' +
+    let html = '<div class="wagonwrap">' +
       '<img class="wagon' + (lv >= 4 ? ' wagon-glow' : '') + '" src="' + wagonImageSrc(lv) + '" alt="ほろ馬車"></div>';
     const sizeClass = ['', 'p2', 'p3', 'p4'];
     members.forEach(function (id, i) {
