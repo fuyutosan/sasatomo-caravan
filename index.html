@@ -435,6 +435,19 @@
 
   /* ── 絵巻マップ（旅の絵巻・地図タブの主役） ── */
   .emaki-card { overflow: hidden; }
+  .emaki-chapter-nav {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    margin-bottom: 6px;
+  }
+  .emaki-chapter-btn {
+    flex: none; font-family: inherit; font-size: 15px; line-height: 1; cursor: pointer;
+    width: 32px; height: 28px; padding: 0;
+    background: var(--green); color: #fff;
+    border: 2px solid #056b0e; border-radius: 6px; box-shadow: 0 3px 0 #045c0c;
+  }
+  .emaki-chapter-btn:active { box-shadow: 0 1px 0 #045c0c; transform: translateY(2px); }
+  .emaki-chapter-btn:disabled { background: #b7c7b3; border-color: #93a390; box-shadow: none; cursor: default; opacity: .6; }
+  .emaki-chapter-label { font-size: 12px; color: #4a6b4f; font-weight: bold; }
   .emaki-scroll {
     overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch;
     margin: 0 -12px; padding: 10px 12px 6px;
@@ -793,6 +806,11 @@
     <div class="tab" id="tab-map">
       <section class="card emaki-card">
         <h2>🗾 旅の絵巻</h2>
+        <div class="emaki-chapter-nav">
+          <button class="emaki-chapter-btn" id="emakiChapterPrevBtn" aria-label="まえの章へ">◀</button>
+          <span class="emaki-chapter-label" id="emakiChapterLabel">1〜10のたび</span>
+          <button class="emaki-chapter-btn" id="emakiChapterNextBtn" aria-label="つぎの章へ">▶</button>
+        </div>
         <div class="emaki-scroll" id="emakiScroll">
           <div class="emaki-road" id="emakiRoad"></div>
         </div>
@@ -1019,10 +1037,10 @@
     timeBandOrder: ['morning', 'day', 'evening', 'night'],
     timeBandBonus: 0.20, // 得意な時間帯のあいだ、その子の総合力+20%
     // ── おおもやもや戦（エリアボス・企画書.md §4-7） ──
-    bossUnlockTownCounts: [3, 6, 9, 12, 16], // クリア済み町数がこの値に達するとそのエリアのボスが解放される（5体・16町拡張ぶん）
+    bossUnlockTownCounts: [3, 6, 9, 12, 16, 20, 25, 30, 36, 42, 50, 58, 66, 74, 80], // クリア済み町数がこの値に達するとそのエリアのボスが解放される（15体・80町拡張ぶん）
     bossBattleMs: 60000,
     bossHpBase: 600,       // エリア1のHP（浄化力の平均的な編成でだいたい60秒ぴったりで削りきれる想定）
-    bossHpGrowth: 1.5,     // エリアが進むごとにHPが1.5倍
+    bossHpGrowth: 1.2,     // エリアが進むごとにHPが1.2倍（80町拡張・15エリア化にともない1.5→1.2に緩和。15エリア目でも約7,700に収まる）
     bossDpsPerPurifyMult: 10, // 「いますぐ挑戦」1秒あたりのダメージ = これ × stats.purifyMult
     bossPassiveDpsPerPurify: 5, // 「じわじわ（放置）」1分あたりのダメージ = これ × stats.purifyMult（オンライン中もオフライン中も進む）
     bossConfidentRatio: 1.05, // 60秒ぶんの想定削り量がHPのこの倍率以上→😊勝てそう！
@@ -1564,7 +1582,8 @@
   const EFFECT_LABEL = { power: 'パンダさんパワー', speed: '歩くはやさ', sasa: '笹ひろい上手', find: 'みつけ上手' };
   const EFFECT_TYPES = ['power', 'speed', 'sasa', 'find'];
 
-  const TOWNS = [
+  // 1〜16町目は既存維持。17町目以降は「町リスト80.md」準拠：前の町の必要浄化数×1.04（四捨五入）で自動生成する
+  const TOWNS_BASE = [
     { name: 'すたーと村', requirement: 20, specialty: '笹だんご' },
     { name: 'ひだまり村', requirement: 50, specialty: 'はちみつ' },
     { name: 'あめふり町', requirement: 100, specialty: 'てるてる飴' },
@@ -1582,6 +1601,39 @@
     { name: 'たきのぼり里', requirement: 8400, specialty: 'たきのぼりわらじ' },
     { name: 'そらのはて', requirement: 11000, specialty: 'そらのはてのはごろも' },
   ];
+  // 17〜80町目：町名・特産品（町リスト80.md準拠。特産品は町名から連想したやさしい日本語）
+  const TOWNS_EXT_NAMES = [
+    ['つゆあけ野', 'あまつぶゼリー'], ['ひかりのさか', 'ひかりごけキャンドル'], ['まちぼうけ駅', 'えきべんおにぎり'],
+    ['おともり森', 'すずかけの実'], ['くもみ台', 'くもわたあめ'], ['はるかぜ丘', 'はなびらしおり'],
+    ['なつぐも浜', 'しおかぜチャイム'], ['あきぞら畑', 'まつぼっくりクッキー'], ['ふゆごもり村', 'ゆきうさぎまんじゅう'],
+    ['こもれび林', 'こもれびキャンディ'], ['せせらぎ川', 'せせらぎハーモニカ'], ['いしだたみ路', 'いしだたみクッキー'],
+    ['かねなり寺', 'かねのねチャーム'], ['ゆめみが原', 'ゆめみそうの花たば'], ['あさつゆ谷', 'あさつゆはちみつ'],
+    ['ゆうなぎ港', 'ゆうなぎランタン'], ['よあけ峠', 'よあけのカンパン'], ['まよなか塔', 'ほしみるレンズ'],
+    ['しずく洞', 'しずくクリスタル'], ['おおぞら渡し', 'おおぞらだこ'], ['みずうみ里', 'みずうみもち'],
+    ['はなびら坂', 'はなびらしゃぼんだま'], ['わたぐも岬', 'わたぐもマシュマロ'], ['ほたる沢', 'ほたるガラスだま'],
+    ['つきよみ丘', 'つきみだんご'], ['かすみ野', 'かすみそうのリース'], ['とおりあめ町', 'あまやどりようかん'],
+    ['にじいろ橋', 'にじいろリボン'], ['かざぐるま村', 'かざぐるまあめ'], ['すずかけ通り', 'すずかけの葉茶'],
+    ['おとひめ浜', 'おとひめの貝がら'], ['やまびこ峰', 'やまびこホイッスル'], ['まつぼっくり森', 'まつぼっくりチョコ'],
+    ['ゆきどけ川', 'ゆきどけサイダー'], ['こもり岩', 'こもりうたオルゴール'], ['ささなみ湾', 'ささなみクラッカー'],
+    ['たそがれ台', 'たそがれジャム'], ['あかつき原', 'あかつきパン'], ['しらべの谷', 'しらべのふえ'],
+    ['ゆらぎ島', 'ゆらぎハンモック'], ['くさぶえ丘', 'くさぶえ'], ['みのり畑', 'みのりのパイ'],
+    ['ねいろの里', 'ねいろすず'], ['きらめき湖', 'きらめきビーズ'], ['とけいそう庭', 'とけいそうティー'],
+    ['まきばの丘', 'まきばチーズ'], ['しおかぜ岬', 'しおかぜタオル'], ['あまやどり宿', 'あまやどりまんじゅう'],
+    ['こがらし峠', 'こがらしマフラー'], ['なごり雪原', 'なごりゆきキャンディ'], ['うたかた池', 'うたかたシャボン'],
+    ['ほほえみ坂', 'ほほえみクッキー'], ['おぼろ月夜', 'おぼろ月もち'], ['かげぼうし林', 'かげえしおり'],
+    ['みなもと泉', 'みなもとの水筒'], ['そよかぜ道', 'そよかぜぼうし'], ['まんげつ丘', 'まんげつだんご'],
+    ['ほしくず砂漠', 'ほしくずガラス'], ['しんきろう地', 'しんきろうレンズ'], ['うみなり岬', 'うみなり貝ぶえ'],
+    ['くものかけはし', 'くものいとリボン'], ['てんくう庭', 'てんくうハーブ'], ['ゆめのつづき', 'ゆめにっき帳'],
+    ['はじまりのばしょ', 'はじまりの笹'],
+  ];
+  const TOWNS = TOWNS_BASE.slice();
+  (function buildExtendedTowns() {
+    let prevReq = TOWNS_BASE[TOWNS_BASE.length - 1].requirement;
+    TOWNS_EXT_NAMES.forEach(function (pair) {
+      prevReq = Math.round(prevReq * 1.04);
+      TOWNS.push({ name: pair[0], requirement: prevReq, specialty: pair[1] });
+    });
+  })();
 
   const DIARY_LINES = [
     'とちゅうで おひるねも しちゃった…えへへ。',
@@ -2397,9 +2449,9 @@
   function townRequirement(i) {
     return Math.round(TOWNS[i].requirement * journeyScaleMult());
   }
-  // 解放条件：16町すべてクリア＋今の旅路でおおもやもや5勝（5エリアぶん全勝）
+  // 解放条件：80町すべてクリア＋今の旅路でおおもやもや15勝（15エリアぶん全勝）
   function canRebirth() {
-    return !!state.finalMessageShown && bossWinCount() >= 5;
+    return !!state.finalMessageShown && bossWinCount() >= 15;
   }
   function startRebirth() {
     if (!canRebirth()) return;
@@ -2622,7 +2674,7 @@
      'caravanEl', 'reportCard', 'reportDiary', 'reportList', 'reportClaimBtn', 'dropCard', 'dropIcon',
      'dropRank', 'dropName', 'dropNewBadge', 'dropFx', 'welcomeCard', 'partySlots', 'totalPowerText',
      'formationText', 'smileForceText', 'autoFormationBtn', 'autoEquipBtn', 'equipSlots', 'invCount', 'invList', 'gachaPullBtn', 'ticketText',
-     'emakiScroll', 'emakiRoad', 'journalList', 'journalMoreBtn',
+     'emakiScroll', 'emakiRoad', 'emakiChapterPrevBtn', 'emakiChapterNextBtn', 'emakiChapterLabel', 'journalList', 'journalMoreBtn',
      'pityText', 'pity50Btn', 'pity100Btn',
      'gacha10PullBtn', 'gacha10Result', 'gacha10Grid', 'gacha10Best', 'gacha10CloseBtn',
      'goldenLetterText', 'goldenLetterBtn',
@@ -2985,13 +3037,28 @@
     return entry ? entry.date : null;
   }
 
+  // 絵巻マップの「章」：80町を1本の横スクロールにすると長すぎるので、10町ごとに区切って表示する。
+  // emakiChapterIndex は保存しないその場だけのUI状態（null＝まだ選んでいない＝起動のたびに現在地の章へ自動ジャンプ）。
+  const EMAKI_CHAPTER_SIZE = 10;
+  let emakiChapterIndex = null;
+  function emakiChapterCount() { return Math.max(1, Math.ceil(TOWNS.length / EMAKI_CHAPTER_SIZE)); }
+  function clampEmakiChapter(idx) { return Math.max(0, Math.min(emakiChapterCount() - 1, idx)); }
+  function goToEmakiChapter(idx) { emakiChapterIndex = clampEmakiChapter(idx); renderEmaki(); }
+
   // 絵巻マップ：横スクロールの道に町（家アイコン）を並べる。クリア済みは明るく＋🏮、未到達はシルエット＋❓。
   // 現在地にミニキャラバン、ボス撃破済みエリアの空に笑顔雲、区間ごとにあしあと（クリア済みだけ）。
+  // 表示は「章」単位（10町ずつ）。クリア済みの章もさかのぼって見られる＝旅の証を眺められることが大事。
   function renderEmaki() {
     if (!el.emakiRoad) return;
+    if (emakiChapterIndex === null) emakiChapterIndex = clampEmakiChapter(Math.floor(state.townIndex / EMAKI_CHAPTER_SIZE));
+    const chapterIdx = clampEmakiChapter(emakiChapterIndex);
+    const startIdx = chapterIdx * EMAKI_CHAPTER_SIZE;
+    const endIdx = Math.min(TOWNS.length, startIdx + EMAKI_CHAPTER_SIZE);
+
     const wagonLv = wagonLevel();
     let html = '';
-    TOWNS.forEach(function (t, i) {
+    for (let i = startIdx; i < endIdx; i++) {
+      const t = TOWNS[i];
       const cleared = i < state.townIndex || (i === state.townIndex && state.finalMessageShown);
       const isCurrent = (i === state.townIndex && !state.finalMessageShown);
       const reached = i <= state.townIndex;
@@ -3007,16 +3074,21 @@
       html += '<div class="emaki-label">' + (reached ? t.name : '❓') + '</div>';
       html += '</div>';
 
-      if (i < TOWNS.length - 1) {
+      if (i < endIdx - 1) {
         const segCleared = i < state.townIndex;
         html += '<div class="emaki-path">' + (segCleared ? '<span class="footprint"></span><span class="footprint"></span><span class="footprint"></span>' : '') + '</div>';
       }
-    });
-    if (state.finalMessageShown) {
+    }
+    // 「つづく…」マーカーは最終章の末尾（＝80町目のうしろ）にだけ出す
+    if (state.finalMessageShown && endIdx === TOWNS.length) {
       html += '<div class="emaki-path"><span class="footprint"></span><span class="footprint"></span><span class="footprint"></span></div>';
       html += '<div class="emaki-node"><div class="emaki-label">🌱<br>つづく…</div></div>';
     }
     el.emakiRoad.innerHTML = html;
+
+    if (el.emakiChapterLabel) el.emakiChapterLabel.textContent = (startIdx + 1) + '〜' + endIdx + 'のたび';
+    if (el.emakiChapterPrevBtn) el.emakiChapterPrevBtn.disabled = (chapterIdx <= 0);
+    if (el.emakiChapterNextBtn) el.emakiChapterNextBtn.disabled = (chapterIdx >= emakiChapterCount() - 1);
   }
 
   // 町タップ→ミニポップ（はじめて来た日／特産品／その町で笑顔にした雲の数）
@@ -4196,6 +4268,8 @@
       if (!node) return;
       openTownInfoPopup(parseInt(node.dataset.town, 10));
     });
+    el.emakiChapterPrevBtn.addEventListener('click', function () { goToEmakiChapter(emakiChapterIndex - 1); });
+    el.emakiChapterNextBtn.addEventListener('click', function () { goToEmakiChapter(emakiChapterIndex + 1); });
     el.journalMoreBtn.addEventListener('click', function () {
       journalExpanded = !journalExpanded;
       renderJournal();
@@ -4389,6 +4463,11 @@
     checkWagonLevelUp: checkWagonLevelUp,
     renderScene: renderScene,
     renderEmaki: renderEmaki,
+    goToEmakiChapter: goToEmakiChapter,
+    emakiChapterCount: emakiChapterCount,
+    getEmakiChapterIndex: function () { return emakiChapterIndex; },
+    resetEmakiChapterIndex: function () { emakiChapterIndex = null; },
+    TOWNS: TOWNS,
     startCamp: startCamp,
     endCamp: endCamp,
     updateCamp: updateCamp,
