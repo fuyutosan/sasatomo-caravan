@@ -201,18 +201,10 @@
   .panda.p4 { width: 40px; animation-delay: .5s; }
   @keyframes bob { 50% { transform: translateY(-5px); } }
 
-  /* ── 馬車が育つ（展望アイデア帳.md④・保存不要の導出値。既存wagon.pngへの飾り重ねのみ・新規画像なし） ── */
-  .wagon-flag { position: absolute; top: -22px; left: 6px; font-size: 16px; z-index: 3; }
-  .wagon-lantern {
-    position: absolute; top: -15px; right: 0; font-size: 15px; z-index: 3;
-    transform-origin: top center; animation: lanternSway 1.6s ease-in-out infinite;
-  }
-  @keyframes lanternSway { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(8deg); } }
-  .wagon-glow { filter: drop-shadow(0 0 8px rgba(255, 205, 80, .85)) drop-shadow(0 0 3px rgba(255, 235, 150, .9)); }
-  /* 絵巻マップの現在地マーカーは小さい(34px)ので、飾りも少し控えめなサイズ・位置に */
+  /* ── 馬車が育つ（展望アイデア帳.md④・保存不要の導出値。Lv1〜4は本物の馬車画像を切り替え。Lv4だけ控えめな光を追加） ── */
+  @keyframes wagonGlowPulse { 0%, 100% { filter: drop-shadow(0 0 6px rgba(255, 205, 80, .7)) drop-shadow(0 0 2px rgba(255, 235, 150, .8)); } 50% { filter: drop-shadow(0 0 10px rgba(255, 205, 80, .95)) drop-shadow(0 0 4px rgba(255, 235, 150, 1)); } }
+  .wagon-glow { animation: wagonGlowPulse 1.8s ease-in-out infinite; }
   .emaki-current-marker { position: relative; }
-  .emaki-current-marker .wagon-flag { top: -13px; left: 0; font-size: 11px; }
-  .emaki-current-marker .wagon-lantern { top: -8px; right: -3px; font-size: 10px; }
 
   /* ── なかまのおしゃべり（展望アイデア帳.md⑦・吹き出しは.scene直下の使い回し1個をキャラの位置に動かす方式） ── */
   .chat-bubble {
@@ -2466,12 +2458,10 @@
     if (cleared >= 3) return 2;
     return 1;
   }
-  // 馬車Lvに応じた飾り（🚩／🏮）のhtml断片。旅シーンの幌馬車・絵巻マップの現在地マーカーの両方で使う
-  function wagonDecorHtml(lv) {
-    let html = '';
-    if (lv >= 2) html += '<span class="wagon-flag">🚩</span>';
-    if (lv >= 3) html += '<span class="wagon-lantern">🏮</span>';
-    return html;
+  // 馬車Lvに応じた画像パス（Lv1〜4はふゆとさん用意の本物の馬車画像）。旅シーンの幌馬車・絵巻マップの現在地マーカーの両方で使う
+  const WAGON_IMG_BY_LV = { 1: 'assets/scene/wagon.png', 2: 'assets/scene/wagon_lv2.png', 3: 'assets/scene/wagon_lv3.png', 4: 'assets/scene/wagon_lv4.png' };
+  function wagonImageSrc(lv) {
+    return WAGON_IMG_BY_LV[lv] || WAGON_IMG_BY_LV[1];
   }
   // レベルが上がった瞬間だけトースト＋旅日記に記録し、見た目を再描画する
   function checkWagonLevelUp(beforeLv) {
@@ -2876,8 +2866,8 @@
   function renderScene() {
     const members = state.party.filter(Boolean);
     const lv = wagonLevel();
-    let html = '<div class="wagonwrap">' + wagonDecorHtml(lv) + '<span class="sasa">🎋🎋</span>' +
-      '<img class="wagon' + (lv >= 4 ? ' wagon-glow' : '') + '" src="assets/scene/wagon.png" alt="ほろ馬車"></div>';
+    let html = '<div class="wagonwrap"><span class="sasa">🎋🎋</span>' +
+      '<img class="wagon' + (lv >= 4 ? ' wagon-glow' : '') + '" src="' + wagonImageSrc(lv) + '" alt="ほろ馬車"></div>';
     const sizeClass = ['', 'p2', 'p3', 'p4'];
     members.forEach(function (id, i) {
       const mirrored = id === 'moonwalk';
@@ -3124,7 +3114,7 @@
 
       html += '<div class="emaki-node" data-town="' + i + '">';
       if (hasSmile) html += '<div class="emaki-smile" title="おおもやもやを笑顔にした証"></div>';
-      if (isCurrent) html += '<div class="emaki-current-marker">' + wagonDecorHtml(wagonLv) + '<img src="assets/scene/wagon.png" alt="いまここ" class="' + (wagonLv >= 4 ? 'wagon-glow' : '') + '"></div>';
+      if (isCurrent) html += '<div class="emaki-current-marker"><img src="' + wagonImageSrc(wagonLv) + '" alt="いまここ" class="' + (wagonLv >= 4 ? 'wagon-glow' : '') + '"></div>';
       html += '<img class="emaki-house ' + (cleared || isCurrent ? 'current' : 'unk') + (cleared ? ' cleared' : '') + '" src="assets/scene/house.png" alt="">';
       if (cleared) html += '<span class="emaki-lantern">🏮</span>';
       html += '<div class="emaki-label">' + (reached ? t.name : '❓') + '</div>';
