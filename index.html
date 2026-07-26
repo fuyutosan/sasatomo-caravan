@@ -302,11 +302,16 @@
   .btn.share { background: #1c1c1c; border-color: #000; box-shadow: 0 4px 0 #000; text-decoration: none; text-align: center; box-sizing: border-box; }
   .btn.share:active { box-shadow: 0 1px 0 #000; }
 
-  .party .slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .party .party-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+  .party .party-head h2 { margin-bottom: 0; flex: 1; min-width: 140px; }
+  /* 得意アイコン＋スキル名＋ℹ️ボタンが増えて1枠に必要な幅が広がったため、4列並びだと375px幅で右端が切れる。
+     2列×2行にして各枠の幅を確保する（2026-07-26 抜き打ち検証で発覚・修正）。min-width:0はCSS gridの既定(min-width:auto)で
+     nowrapな中身（スキル名タグ等）がトラックをはみ出すのを防ぐ保険。 */
+  .party .slots { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
   .party .slot {
     border: 2px solid var(--dark); background: #f2f7ef; padding: 6px 2px;
     text-align: center; display: flex; flex-direction: column; align-items: center; gap: 2px;
-    cursor: pointer; min-height: 74px; justify-content: center;
+    cursor: pointer; min-height: 74px; justify-content: center; position: relative; min-width: 0;
   }
   .party .slot img { width: 32px; image-rendering: pixelated; }
   .party .slot b { font-size: 10px; }
@@ -315,17 +320,70 @@
     justify-content: center; color: #8a8a80; font-size: 20px;
     background: #eee9db; border-style: dashed;
   }
+  .party .slot .slot-talents { font-size: 11px; line-height: 1; margin-top: 1px; }
+  .party .slot .slot-talents .slot-talent-main { font-size: 13px; filter: drop-shadow(0 0 1px #ffb400); }
+  .party .slot i .slot-talent-main { font-weight: bold; color: #a67c00; font-style: normal; }
+  .party .slot .slot-skill {
+    font-size: 8px; color: #a67c00; background: #fff6df; border: 1px solid #ffb400;
+    border-radius: 4px; padding: 1px 3px; margin-top: 2px; max-width: 100%;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .party .slot .slot-info-btn {
+    position: absolute; top: 2px; right: 2px; width: 16px; height: 16px; line-height: 14px;
+    font-size: 9px; background: #fff; border: 1px solid var(--dark); border-radius: 50%;
+    text-align: center; padding: 0; cursor: pointer;
+  }
   .party .total { font-size: 12px; margin: 8px 0 2px; }
   .party .total b { color: var(--green); font-size: 15px; }
   .party .smile-force { font-size: 12px; margin: 2px 0; color: #b0473f; }
   .party .smile-force b { font-size: 14px; }
   .party .formation { font-size: 11px; color: #7a3fd0; margin-bottom: 6px; }
+  .party .reason-box:empty { display: none; }
+  .party .reason-heading { font-size: 11px; font-weight: bold; color: #7a3fd0; margin-bottom: 4px; }
+  .party .reason-list {
+    list-style: none; font-size: 11px; color: #4a4a42; line-height: 1.7;
+    background: #f6f2ff; border: 2px solid #d9c8ff; padding: 8px; margin-bottom: 6px;
+  }
   .party .btn.gacha { background: #b06bff; border-color: #7a3fd0; box-shadow: 0 4px 0 #7a3fd0; }
   .party .btn.gacha:active { box-shadow: 0 1px 0 #7a3fd0; }
   .party .ticket { font-size: 11px; color: #7a3fd0; margin-top: 6px; text-align: center; }
 
   .btn.auto-equip, .btn.auto-formation { background: #ffb400; border-color: #a67c00; box-shadow: 0 4px 0 #a67c00; margin-bottom: 8px; }
   .btn.auto-equip:active, .btn.auto-formation:active { box-shadow: 0 1px 0 #a67c00; }
+  .btn.tips-btn {
+    width: auto; display: inline-block; padding: 8px 10px; font-size: 11px;
+    background: #4aa3ff; border: 3px solid #1c6fbf; box-shadow: 0 4px 0 #1c6fbf; white-space: nowrap;
+  }
+  .btn.tips-btn:active { box-shadow: 0 1px 0 #1c6fbf; }
+
+  /* ── へんせいのコツ モーダル ── */
+  .hensei-tips-modal { max-width: 340px; text-align: left; }
+  .tips-nav { display: flex; gap: 4px; margin-bottom: 8px; flex-wrap: wrap; }
+  .tips-nav-btn {
+    flex: 1; min-width: 68px; font-size: 11px; padding: 6px 2px;
+    background: #eee9db; border: 2px solid var(--dark); cursor: pointer; font-family: inherit;
+  }
+  .tips-nav-btn.on { background: var(--green); color: #fff; }
+  .tips-sec { display: none; font-size: 12px; line-height: 1.8; }
+  .tips-sec.show { display: block; }
+  .tips-table { width: 100%; border-collapse: collapse; font-size: 11px; margin: 6px 0; }
+  .tips-table th, .tips-table td { border: 1px solid #cfc9b8; padding: 4px; text-align: left; vertical-align: top; }
+  .tips-table th { background: #eef6ea; }
+  .tips-table td:first-child, .tips-table th:first-child { white-space: nowrap; }
+  .tips-talent-list { display: flex; flex-direction: column; gap: 8px; margin: 6px 0; }
+  .tips-talent-row { border: 1px solid #cfc9b8; background: #eef6ea; padding: 6px 8px; }
+  .tips-talent-name { font-size: 12px; font-weight: bold; display: flex; align-items: center; gap: 4px; }
+  .tips-talent-icon { flex: none; }
+  .tips-talent-nowrap { white-space: nowrap; }
+  .tips-talent-desc { font-size: 11px; color: #4a4a42; margin-top: 3px; line-height: 1.6; }
+  .tips-note { font-size: 11px; color: #7a3fd0; background: #f6f2ff; border: 2px solid #d9c8ff; padding: 6px; margin-top: 6px; line-height: 1.7; }
+  .tips-goal-list { list-style: none; font-size: 12px; line-height: 1.9; padding-left: 2px; }
+
+  /* ── おまかせ編成：めあて選択シート ── */
+  .auto-formation-sheet { max-width: 300px; text-align: center; }
+  .auto-formation-sheet h3 { margin-bottom: 10px; }
+  .btn.af-choice { margin-bottom: 8px; background: #ffb400; border-color: #a67c00; box-shadow: 0 4px 0 #a67c00; }
+  .btn.af-choice:active { box-shadow: 0 1px 0 #a67c00; }
   .equip .slots3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 6px; }
   .equip .eslot {
     border: 2px solid var(--dark); background: #f2f7ef; padding: 8px 2px;
@@ -804,12 +862,16 @@
     <!-- 🐼 編成タブ -->
     <div class="tab" id="tab-hensei">
       <section class="card party">
-        <h2>🐼 キャラバン編成（さいだい4人）</h2>
+        <div class="party-head">
+          <h2>🐼 キャラバン編成（さいだい4人）</h2>
+          <button class="btn tips-btn" id="henseiTipsBtn" type="button">❓ へんせいのコツ</button>
+        </div>
         <button class="btn auto-formation" id="autoFormationBtn">✨ おまかせ編成</button>
         <div class="slots" id="partySlots"></div>
         <p class="total">キャラバン総合力 <b id="totalPowerText">0</b><br>→ るすばん中に稼げるパンダさんパワーが変わるよ</p>
         <p class="smile-force">😊 笑顔にする力 <b id="smileForceText">100%</b>（おおもやもや戦の強さ）</p>
         <p class="formation" id="formationText"></p>
+        <div class="reason-box" id="reasonBox"></div>
       </section>
 
       <section class="card equip">
@@ -985,6 +1047,33 @@
   <div class="modal-box char-detail">
     <div id="charDetailBody"></div>
     <button class="btn modal-close" id="charCloseBtn">とじる</button>
+  </div>
+</div>
+
+<!-- へんせいのコツ モーダル -->
+<div class="modal-overlay" id="henseiTipsOverlay" style="display:none;">
+  <div class="modal-box hensei-tips-modal">
+    <h3>❓ へんせいのコツ</h3>
+    <div class="tips-nav" id="tipsNav">
+      <button class="tips-nav-btn on" type="button" data-sec="0">とくい</button>
+      <button class="tips-nav-btn" type="button" data-sec="1">へんせい</button>
+      <button class="tips-nav-btn" type="button" data-sec="2">かくせい</button>
+      <button class="tips-nav-btn" type="button" data-sec="3">めあて</button>
+    </div>
+    <div id="tipsBody"></div>
+    <button class="btn modal-close" id="henseiTipsCloseBtn">とじる</button>
+  </div>
+</div>
+
+<!-- おまかせ編成：めあて選択シート -->
+<div class="modal-overlay" id="autoFormationSheetOverlay" style="display:none;">
+  <div class="modal-box auto-formation-sheet">
+    <h3>✨ どんな編成にする？</h3>
+    <button class="btn af-choice" type="button" data-mode="balance">⚖️ バランスよく</button>
+    <button class="btn af-choice" type="button" data-mode="sasa">🎋 笹を いちばん あつめる</button>
+    <button class="btn af-choice" type="button" data-mode="purify">🥊 おおもやもやに 強く</button>
+    <button class="btn af-choice" type="button" data-mode="find">🎁 旅道具を 見つける</button>
+    <button class="btn modal-close" id="afSheetCloseBtn">とじる</button>
   </div>
 </div>
 
@@ -1521,6 +1610,13 @@
    * マスターデータ
    * ============================================================ */
   const TALENTS = ['元気くばり上手', '笹ひろい上手', 'あしがはやい', 'みつけ上手', 'おうえん上手'];
+  const TALENT_ICON = {
+    '元気くばり上手': '💚',
+    '笹ひろい上手': '🎋',
+    'あしがはやい': '🏃',
+    'みつけ上手': '🔍',
+    'おうえん上手': '📣',
+  };
 
   // なかまパンダさんの見た目：現状は全員おなじ画像だが、将来Geminiで個別画像ができたら
   // ここ(各キャラのimageフィールド)を差し替えるだけでずかん・詳細・拡大表示すべてに反映される。
@@ -2435,15 +2531,15 @@
       formationType: formationType, formationTalent: formationTalent,
       memberCount: members.length, hasMoonwalk: state.party.indexOf('moonwalk') !== -1,
       hasHanamaru: hasHanamaru, hasNagareboshi: hasNagareboshi, offlineTimeMult: offlineTimeMult,
-      band: band, hour: hour,
+      band: band, hour: hour, outenCount: outenCount,
       journeyMult: journeyIncomeMult(), // 旅路ボーナス(a)：周回+1ごとに全収入+10%（累積）。獲得量の計算にだけ使う＝浄化にかかる時間(purifyMult自体)は変えない
     };
   }
 
   function formationLabelText(stats) {
-    if (stats.formationType === 'balance') return 'バランスボーナス：全員ちがう得意で 全収入+15%';
-    if (stats.formationType === 'specialty2') return 'とくかボーナス：' + stats.formationTalent + ' が2人で +25%';
-    if (stats.formationType === 'specialty3') return 'とくかボーナス：' + stats.formationTalent + ' が3人以上で +40%';
+    if (stats.formationType === 'balance') return 'バランスボーナス：全員ちがう得意で 全収入+' + Math.round(BALANCE.formationBalanceBonus * 100) + '%';
+    if (stats.formationType === 'specialty2') return 'とくかボーナス：' + stats.formationTalent + ' が2人で +' + Math.round(BALANCE.formationSpecialty2Bonus * 100) + '%';
+    if (stats.formationType === 'specialty3') return 'とくかボーナス：' + stats.formationTalent + ' が3人以上で +' + Math.round(BALANCE.formationSpecialty3Bonus * 100) + '%';
     return '';
   }
 
@@ -2798,7 +2894,9 @@
      'snapCard', 'snapGrid', 'snapOverlay', 'snapDetailBody', 'snapSaveBtn', 'snapShareBtn', 'snapCloseBtn',
      'zukanShareBtn', 'zukanShareOverlay', 'zukanShareBody', 'zukanShareSaveBtn', 'zukanShareXBtn', 'zukanShareCloseBtn',
      'chatBubbleEl', 'campfireEl',
-     'journeyBadge', 'journeyCard', 'journeyBtn'
+     'journeyBadge', 'journeyCard', 'journeyBtn',
+     'reasonBox', 'henseiTipsBtn', 'henseiTipsOverlay', 'tipsNav', 'tipsBody', 'henseiTipsCloseBtn',
+     'autoFormationSheetOverlay', 'afSheetCloseBtn'
     ].forEach(function (id) { el[id] = q(id); });
   }
 
@@ -2946,6 +3044,129 @@
     return def.preferredBand ? BALANCE.timeBands[def.preferredBand].icon : BAND_ICON_FALLBACK;
   }
 
+  /* ── 編成の見える化：えらんだわけ・へんせいのコツ（2026-07-26 追加） ── */
+  let lastAutoMode = null; // 直近で「おまかせ編成」を使ったときのモード（null＝手動で組んだ編成）
+  const AUTO_MODE_LABEL = {
+    balance: 'バランスよく',
+    sasa: '笹を いちばん あつめる',
+    purify: 'おおもやもやに 強く',
+    find: '旅道具を 見つける',
+  };
+  // モードごとの「いちばん高い数字」の見せ方（statsから実データを引いて文章にする）
+  const AUTO_MODE_METRIC = {
+    balance: { label: '総合力', value: function (s) { return fmt(s.totalPower); } },
+    sasa: { label: '笹の もうけ', value: function (s) { return '+' + Math.round((s.sasaMult - 1) * 100) + '%'; } },
+    purify: { label: '笑顔にする力', value: function (s) { return '+' + Math.round((s.purifyMult - 1) * 100) + '%'; } },
+    find: { label: '旅道具の 見つけやすさ', value: function (s) { return '+' + Math.round((s.findMult - 1) * 100) + '%'; } },
+  };
+
+  // いまの編成(state.party)とstatsから、実際に効いているボーナスを文章にする（固定文言にせず毎回データから作る）
+  function formationReasonLines(stats) {
+    const members = state.party.filter(function (id) { return id; }).map(function (id) { return CHAR_MAP[id]; }).filter(Boolean);
+    if (members.length === 0) return [];
+
+    // 全体バフ（おうえん上手）と特化ボーナスは数え方がちがう（前者はぜんぶの得意・後者はメインの得意だけ）ので、
+    // 文言でもハッキリ書き分ける。でないと「3人なのに2人？」に見えてしまう（2026-07-26 検証で発覚）。
+    const lines = [];
+    if (stats.outenCount > 0) {
+      const pct = Math.round(BALANCE.outenPowerBonusPerMember * stats.outenCount * 100);
+      lines.push('📣 おうえん上手を もってる子が ' + stats.outenCount + '人 いるから みんなの力が +' + pct + '%');
+    }
+    if (stats.formationType === 'balance') {
+      lines.push('⭐ メインの とくいが ぜんいん ちがうから バランスボーナス +' + Math.round(BALANCE.formationBalanceBonus * 100) + '%');
+    } else if (stats.formationType === 'specialty2' || stats.formationType === 'specialty3') {
+      const bonus = stats.formationType === 'specialty3' ? BALANCE.formationSpecialty3Bonus : BALANCE.formationSpecialty2Bonus;
+      const cntText = stats.formationType === 'specialty3' ? '3人いじょう' : '2人';
+      lines.push('⭐ メインの とくいが「' + stats.formationTalent + '」の子が ' + cntText + ' → 特化ボーナス +' + Math.round(bonus * 100) + '%');
+    }
+    members.forEach(function (def) {
+      if (!def.skill) return;
+      let tag = '';
+      if (def.id === 'mikazuki') tag = timeInRange(stats.hour, 21, 6) ? '（いま発動中）' : '（夜21時〜朝6時だけ発動）';
+      else if (def.id === 'hatsuhinode') tag = timeInRange(stats.hour, 5, 10) ? '（いま発動中）' : '（朝5時〜10時だけ発動）';
+      lines.push(def.name + 'の「' + def.skill.name + '」で ' + def.skill.desc + tag);
+    });
+
+    if (lastAutoMode && AUTO_MODE_METRIC[lastAutoMode]) {
+      const metric = AUTO_MODE_METRIC[lastAutoMode];
+      lines.push('いちばん ' + metric.label + ' が たかい くみあわせ（' + metric.value(stats) + '）');
+    } else {
+      lines.push('いまの キャラバン総合力：' + fmt(stats.totalPower));
+    }
+    return lines;
+  }
+
+  function renderReasonBox(stats) {
+    if (!el.reasonBox) return;
+    const lines = formationReasonLines(stats);
+    if (lines.length === 0) { el.reasonBox.innerHTML = ''; return; }
+    const heading = lastAutoMode ? ('🤖 「' + AUTO_MODE_LABEL[lastAutoMode] + '」を えらんだわけ') : '📋 いまの へんせいの ボーナス';
+    el.reasonBox.innerHTML = '<div class="reason-heading">' + heading + '</div>' +
+      '<ul class="reason-list">' + lines.map(function (l) { return '<li>・' + l + '</li>'; }).join('') + '</ul>';
+  }
+
+  // ❓へんせいのコツ：とくい・へんせいボーナス・かくせい・めあて別おすすめ の4節（数字はBALANCEから毎回生成）
+  function henseiTipsSectionsHtml() {
+    const outenPct = Math.round(BALANCE.outenPowerBonusPerMember * 100);
+    const balancePct = Math.round(BALANCE.formationBalanceBonus * 100);
+    const spec2Pct = Math.round(BALANCE.formationSpecialty2Bonus * 100);
+    const spec3Pct = Math.round(BALANCE.formationSpecialty3Bonus * 100);
+
+    const talentRows = [
+      ['💚', '元気くばり上手', 'もやもやを 笑顔にする力が あがる（ボスにも 効くよ）'],
+      ['🎋', '笹ひろい上手', '笹が たくさん もらえる'],
+      ['🏃', 'あしがはやい', 'もやもや雲に 早く 出会える'],
+      ['🔍', 'みつけ上手', '旅道具が 見つかりやすい'],
+      ['📣', 'おうえん上手', 'なかま全員の 力が +' + outenPct + '%ずつ あがる（人数ぶん重なるよ）'],
+    ];
+    const sec0 = '<div class="tips-talent-list">' + talentRows.map(function (row) {
+      return '<div class="tips-talent-row"><div class="tips-talent-name"><span class="tips-talent-icon">' + row[0] + '</span><span class="tips-talent-nowrap">' + row[1] + '</span></div>' +
+        '<div class="tips-talent-desc">' + row[2] + '</div></div>';
+    }).join('') + '</div>' +
+      '<div class="tips-note">⭐ とくいを 2つ3つ もってる子も いるよ。いちばん さいしょの ものが「メインの とくい」で、特化ボーナスは メインの とくいで 数えるんだ。ほかの とくいも ちゃんと はたらくよ。</div>';
+
+    const sec1 = '<p>ぜんいん ちがう とくい → ぜんぶの もうけが +' + balancePct + '%</p>' +
+      '<p>おなじ とくいが 2人 → その分野が +' + spec2Pct + '%／3人いじょう → +' + spec3Pct + '%</p>' +
+      '<div class="tips-note">📣 おうえん上手を そろえると 全員が 強くなるから、レアが たかい子より つよい組みあわせに なることも あるよ。</div>';
+
+    const rarities = ['N', 'R', 'SR', 'SSR', 'UR'];
+    let awakenRows = '';
+    rarities.forEach(function (r) {
+      const cap = BALANCE.awakenMaxByRarity[r];
+      const per = Math.round(BALANCE.awakenBonusByRarity[r] * 100);
+      awakenRows += '<tr><td>' + r + '</td><td>Lv' + cap + 'まで</td><td>1レベルで +' + per + '%</td></tr>';
+    });
+    const sec2 = '<table class="tips-table"><tr><th>レア</th><th>じょうげん</th><th>1レベルの のびかた</th></tr>' + awakenRows + '</table>' +
+      '<p>低レアの子ほど、1レベルで 大きく のびるよ。そだてれば ひくいレアの子も 主力に なれるよ。</p>' +
+      '<p>おむかえpt ' + BALANCE.pityCost.awaken + 'ptで、すきな子の かくせい+1と 交換できるよ。</p>';
+
+    const sec3 = '<ul class="tips-goal-list">' +
+      '<li>🎋 笹を ためたい → 笹ひろい上手を 多めに（<span class="tips-talent-nowrap">2〜3人</span>）＋ おうえん上手</li>' +
+      '<li>🥊 おおもやもやを 倒したい → 元気くばり上手を 多めに ＋ パンダさんパワー+%の 旅道具</li>' +
+      '<li>🎁 旅道具を 集めたい → みつけ上手を 多めに</li>' +
+      '<li>⚖️ まんべんなく → ぜんいん ちがう とくいで バランスボーナス</li>' +
+      '</ul>';
+
+    return [sec0, sec1, sec2, sec3];
+  }
+
+  function openHenseiTips() {
+    const secs = henseiTipsSectionsHtml();
+    let html = '';
+    secs.forEach(function (s, i) {
+      html += '<div class="tips-sec' + (i === 0 ? ' show' : '') + '" data-sec="' + i + '">' + s + '</div>';
+    });
+    el.tipsBody.innerHTML = html;
+    if (el.tipsNav) {
+      el.tipsNav.querySelectorAll('.tips-nav-btn').forEach(function (b, i) { b.classList.toggle('on', i === 0); });
+    }
+    el.henseiTipsOverlay.style.display = 'flex';
+  }
+  function closeHenseiTips() { el.henseiTipsOverlay.style.display = 'none'; }
+
+  function openAutoFormationSheet() { el.autoFormationSheetOverlay.style.display = 'flex'; }
+  function closeAutoFormationSheet() { el.autoFormationSheetOverlay.style.display = 'none'; }
+
   function renderPartyPanel() {
     const stats = computeStats();
     let html = '';
@@ -2956,15 +3177,29 @@
       } else {
         const def = CHAR_MAP[id];
         const owned = state.owned[id] || { awaken: 0 };
-        html += '<div class="slot" data-slot="' + i + '"><img src="' + (def.image || IMG) + '" alt="">' +
+        // 得意の最初の1つ＝「メインの得意」（特化ボーナスはこれで数える）。ほかの得意と見分けられるよう強調表示する。
+        const talentIcons = def.talents.map(function (t, idx) {
+          const icon = TALENT_ICON[t] || '';
+          return idx === 0 ? '<span class="slot-talent-main" title="メインの とくい">' + icon + '</span>' : icon;
+        }).join('');
+        const talentText = def.talents.map(function (t, idx) {
+          return idx === 0 ? '<span class="slot-talent-main">' + t + '</span>' : t;
+        }).join('・');
+        html += '<div class="slot" data-slot="' + i + '">' +
+          '<button class="slot-info-btn" type="button" data-info-id="' + id + '" aria-label="' + def.name + 'の くわしい じょうほう">ℹ️</button>' +
+          '<img src="' + (def.image || IMG) + '" alt="">' +
           '<b>' + bandIconFor(def) + ' ' + def.name + (owned.awaken > 0 ? ' ★' + owned.awaken : '') + '</b>' +
-          '<i>' + def.talents.join('・') + '</i></div>';
+          '<i>' + talentText + '</i>' +
+          '<div class="slot-talents">' + talentIcons + '</div>' +
+          (def.skill ? '<div class="slot-skill">✨' + def.skill.name + '</div>' : '') +
+          '</div>';
       }
     }
     el.partySlots.innerHTML = html;
     el.totalPowerText.textContent = fmt(stats.totalPower);
     el.smileForceText.textContent = smileForcePercent(stats) + '%';
     el.formationText.textContent = formationLabelText(stats);
+    renderReasonBox(stats);
     renderScene();
   }
 
@@ -2996,32 +3231,42 @@
     return 0;
   }
 
+  // モードごとの評価指標（statsのどの数値を最大化するか）。'balance'は従来どおり総合力。
+  function metricForMode(stats, mode) {
+    if (mode === 'sasa') return stats.sasaMult;
+    if (mode === 'purify') return stats.purifyMult;
+    if (mode === 'find') return stats.findMult;
+    return stats.totalPower;
+  }
+
   // ✨おまかせ編成：所持なかまから最大4人ぶんの全組み合わせを総当たりし、
-  // 編成ボーナス・おうえん上手・固有スキルの総合力系効果まで含めた実効キャラバン総合力が
-  // いちばん高くなる組み合わせを選ぶ（るすばん1.5倍・ドロップ率アップなど総合力に出ないスキルは評価対象外）。
-  // 同点タイブレークはレア度が高い順→覚醒Lvが多い順。
-  function autoFormationBest() {
+  // 編成ボーナス・おうえん上手・固有スキルの効果まで含めた実効値が、指定モードの指標でいちばん高くなる組み合わせを選ぶ
+  // （るすばん1.5倍・ドロップ率アップなど数値化されないスキルは評価対象外）。
+  // mode省略時は従来どおり'balance'（総合力最大）。同点タイブレークはレア度が高い順→覚醒Lvが多い順。
+  function autoFormationBest(mode) {
+    mode = AUTO_MODE_LABEL[mode] ? mode : 'balance';
     const ids = Object.keys(state.owned);
     const k = Math.min(4, ids.length);
     if (k === 0) { showToast('まだなかまがいないみたい…'); return; }
     const originalParty = state.party.slice();
-    let bestCombo = null, bestPower = -Infinity, bestKey = null;
+    let bestCombo = null, bestScore = -Infinity, bestKey = null;
 
     combinations(ids, k).forEach(function (combo) {
       const partyArr = combo.slice();
       while (partyArr.length < 4) partyArr.push(null);
       state.party = partyArr; // computeStats()はstate.partyを見るので一時的に差し替えて評価する
       const stats = computeStats();
+      const score = metricForMode(stats, mode);
       const key = combo.map(function (id) {
         const def = CHAR_MAP[id];
         const owned = state.owned[id];
         return [charRarityRank(def.rarity), owned.awaken || 0];
       }).sort(function (a, b) { return (b[0] - a[0]) || (b[1] - a[1]); });
 
-      if (stats.totalPower > bestPower + 1e-9) {
-        bestPower = stats.totalPower; bestCombo = combo; bestKey = key;
-      } else if (Math.abs(stats.totalPower - bestPower) <= 1e-9 && compareTieKeys(key, bestKey) > 0) {
-        bestPower = stats.totalPower; bestCombo = combo; bestKey = key;
+      if (score > bestScore + 1e-9) {
+        bestScore = score; bestCombo = combo; bestKey = key;
+      } else if (Math.abs(score - bestScore) <= 1e-9 && compareTieKeys(key, bestKey) > 0) {
+        bestScore = score; bestCombo = combo; bestKey = key;
       }
     });
 
@@ -3029,9 +3274,10 @@
     const finalParty = bestCombo ? bestCombo.slice() : [];
     while (finalParty.length < 4) finalParty.push(null);
     state.party = finalParty;
+    lastAutoMode = mode;
     renderPartyPanel();
     saveState();
-    showToast('✨ いちばん稼げるキャラバンにしたよ！');
+    showToast('✨ 「' + AUTO_MODE_LABEL[mode] + '」の キャラバンにしたよ！');
   }
 
   function renderEquipPanel() {
@@ -4725,12 +4971,33 @@
     el.reportClaimBtn.addEventListener('click', function () { el.reportCard.style.display = 'none'; });
 
     el.partySlots.addEventListener('click', function (ev) {
+      const infoBtn = ev.target.closest('[data-info-id]');
+      if (infoBtn) { ev.stopPropagation(); openCharDetail(infoBtn.dataset.infoId); return; }
       const slotEl = ev.target.closest('[data-slot]');
       if (!slotEl) return;
       openPartyPicker(parseInt(slotEl.dataset.slot, 10));
     });
 
-    el.autoFormationBtn.addEventListener('click', autoFormationBest);
+    el.autoFormationBtn.addEventListener('click', openAutoFormationSheet);
+    el.autoFormationSheetOverlay.addEventListener('click', function (ev) {
+      if (ev.target === el.autoFormationSheetOverlay) { closeAutoFormationSheet(); return; }
+      const modeBtn = ev.target.closest('[data-mode]');
+      if (!modeBtn) return;
+      autoFormationBest(modeBtn.dataset.mode);
+      closeAutoFormationSheet();
+    });
+    el.afSheetCloseBtn.addEventListener('click', closeAutoFormationSheet);
+
+    el.henseiTipsBtn.addEventListener('click', openHenseiTips);
+    el.henseiTipsCloseBtn.addEventListener('click', closeHenseiTips);
+    el.henseiTipsOverlay.addEventListener('click', function (ev) { if (ev.target === el.henseiTipsOverlay) closeHenseiTips(); });
+    el.tipsNav.addEventListener('click', function (ev) {
+      const btn = ev.target.closest('[data-sec]');
+      if (!btn) return;
+      const idx = btn.dataset.sec;
+      el.tipsNav.querySelectorAll('.tips-nav-btn').forEach(function (b) { b.classList.toggle('on', b === btn); });
+      el.tipsBody.querySelectorAll('.tips-sec').forEach(function (s) { s.classList.toggle('show', s.dataset.sec === idx); });
+    });
 
     el.equipSlots.addEventListener('click', function (ev) {
       const slotEl = ev.target.closest('[data-slot]');
@@ -4753,10 +5020,12 @@
         const slot = parseInt(item.dataset.slot, 10);
         const id = item.dataset.id;
         if (state.party.indexOf(id) === -1) state.party[slot] = id;
+        lastAutoMode = null; // 手動で組みかえたので「おまかせの理由」表示は「いまの編成のボーナス」に戻す
         renderPartyPanel(); saveState();
       } else if (action === 'clear-party') {
         const slot = parseInt(item.dataset.slot, 10);
         state.party[slot] = null;
+        lastAutoMode = null;
         renderPartyPanel(); saveState();
       } else if (action === 'equip') {
         equipItem(item.dataset.uid);
@@ -5073,6 +5342,14 @@
     redeemItemExchange: redeemItemExchange,
     generateItem: generateItem,
     currentGachaCost: currentGachaCost,
+    TALENT_ICON: TALENT_ICON,
+    formationReasonLines: formationReasonLines,
+    metricForMode: metricForMode,
+    openHenseiTips: openHenseiTips,
+    closeHenseiTips: closeHenseiTips,
+    openAutoFormationSheet: openAutoFormationSheet,
+    closeAutoFormationSheet: closeAutoFormationSheet,
+    getLastAutoMode: function () { return lastAutoMode; },
   };
 
   window.addEventListener('DOMContentLoaded', function () { init(); });
