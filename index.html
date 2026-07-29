@@ -5242,10 +5242,32 @@
     const ov = document.getElementById('opOverlay');
     if (!ov || !window.SasatomoOP) return;
     ov.classList.add('on');
+
+    // ゲームのBGMが鳴っていたら、OPのあいだは止めて、終わったら元に戻す。
+    // ボタンをclick()するのは、見た目（🎵のON表示）も一緒に切り替わるから。
+    const bgmBtn = document.getElementById('bgmToggleBtn');
+    const gameBgmWasOn = !!(bgmBtn && bgmBtn.classList.contains('on'));
+    if (gameBgmWasOn) bgmBtn.click();
+
     SasatomoOP.play(ov, {
       skippable: true,
-      onEnd: function () { ov.classList.remove('on'); }
+      onEnd: function () {
+        ov.classList.remove('on');
+        if (window.OpBgm) OpBgm.stop();
+        if (gameBgmWasOn) bgmBtn.click();
+      }
     });
+
+    // OP専用BGM。ブラウザが自動再生を止めることがあるので、そのときは
+    // 画面に触れた時点で「映像のいまの位置から」鳴らす（頭から鳴らすとズレるため）
+    let bgmStarted = false;
+    const startBgm = function () {
+      if (bgmStarted || !window.OpBgm) return;
+      bgmStarted = true;
+      try { OpBgm.play(null, { volume: 0.5, from: SasatomoOP.currentTime() }); } catch (e) {}
+    };
+    startBgm();
+    ov.addEventListener('pointerdown', startBgm, { once: true });
   }
 
   // 動作確認用（Playwright等の外部検証がstate・内部関数を見られるように。BgmEngineの公開と同じ趣旨）
@@ -5386,6 +5408,7 @@
 })();
 </script>
 <script src="op.js"></script>
+<script src="op-bgm.js"></script>
 <script>
   // PWA: サービスワーカー登録（https配信時のみ。file://での開発時は何もしない）
   if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
