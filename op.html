@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>笹友キャラバン OP — 試写室</title>
+<style>
+  :root { --bg:#0a0d16; --fg:#e8f3ec; --accent:#7ad68f; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--fg); min-height:100vh;
+         font-family:"Yu Gothic UI","Hiragino Kaku Gothic ProN","Meiryo",sans-serif;
+         display:flex; flex-direction:column; align-items:center; gap:14px; padding:18px 12px 40px;
+         word-break:keep-all; overflow-wrap:anywhere; }
+  h1 { font-size:19px; font-weight:800; letter-spacing:.02em; }
+  h1 span { color:var(--accent); }
+  .note { font-size:13px; opacity:.72; text-align:center; line-height:1.7; max-width:640px; }
+  #screen { position:relative; background:#000; border-radius:12px; overflow:hidden;
+            box-shadow:0 14px 50px rgba(0,0,0,.6); }
+  .bar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:center; }
+  button, select { font:inherit; font-size:14px; font-weight:700; padding:9px 16px; border-radius:999px;
+           border:2px solid rgba(255,255,255,.22); background:#182030; color:var(--fg); cursor:pointer; }
+  button.primary { background:var(--accent); color:#0a2a15; border-color:transparent; }
+  button:hover { filter:brightness(1.12); }
+  #seek { width:min(88vw,620px); }
+  .t { font-variant-numeric:tabular-nums; font-size:13px; opacity:.8; min-width:5.5em; text-align:center; }
+</style>
+</head>
+<body>
+  <h1>笹友キャラバン <span>OP 試写室</span></h1>
+  <p class="note">
+    ゲームに入れるのと同じロジックです。つまみを動かすと「その秒の絵」が出ます。<br>
+    ここでOKが出たら、そのまま動画に書き出してYouTubeとメイメイ映画館に置きます。
+  </p>
+
+  <div class="bar">
+    <select id="ratio">
+      <option value="9:16">スマホ縦（9:16）— ゲーム・ショート用</option>
+      <option value="16:9">よこ長（16:9）— YouTube用</option>
+      <option value="4:3">4:3</option>
+    </select>
+    <button id="playBtn" class="primary">▶ 最初から再生</button>
+    <button id="pauseBtn">⏸ とめる</button>
+  </div>
+
+  <div id="screen"></div>
+
+  <div class="bar">
+    <input id="seek" type="range" min="0" max="27" step="0.05" value="0">
+    <span class="t" id="tLabel">0.00 s</span>
+  </div>
+  <div class="bar" id="marks"></div>
+
+<script src="op.js"></script>
+<script>
+  var screenEl = document.getElementById('screen');
+  var seek = document.getElementById('seek');
+  var tLabel = document.getElementById('tLabel');
+  var ratioSel = document.getElementById('ratio');
+
+  function fit() {
+    var parts = ratioSel.value.split(':').map(Number);
+    var ar = parts[0] / parts[1];
+    // 画面に収まる最大サイズ。縦長のときは高さ基準、よこ長のときは幅基準
+    var maxW = Math.min(window.innerWidth - 32, 520);
+    var maxH = window.innerHeight - 300;
+    var w = maxW, h = w / ar;
+    if (h > maxH) { h = maxH; w = h * ar; }
+    screenEl.style.width = Math.round(w) + 'px';
+    screenEl.style.height = Math.round(h) + 'px';
+    SasatomoOP.render(parseFloat(seek.value));
+  }
+
+  SasatomoOP.mount(screenEl);
+  seek.max = SasatomoOP.DURATION;
+  fit();
+  window.addEventListener('resize', fit);
+  ratioSel.addEventListener('change', fit);
+
+  var raf = null, t0 = 0, playing = false;
+  function stopPlay() { if (raf) cancelAnimationFrame(raf); raf = null; playing = false; }
+  function setT(t) {
+    t = Math.max(0, Math.min(SasatomoOP.DURATION, t));
+    seek.value = t;
+    tLabel.textContent = t.toFixed(2) + ' s';
+    SasatomoOP.render(t);
+  }
+  document.getElementById('playBtn').addEventListener('click', function () {
+    stopPlay(); playing = true; t0 = performance.now();
+    (function loop(now) {
+      if (!playing) return;
+      var t = (now - t0) / 1000;
+      if (t >= SasatomoOP.DURATION) { setT(SasatomoOP.DURATION); stopPlay(); return; }
+      setT(t);
+      raf = requestAnimationFrame(loop);
+    })(performance.now());
+  });
+  document.getElementById('pauseBtn').addEventListener('click', stopPlay);
+  seek.addEventListener('input', function () { stopPlay(); setT(parseFloat(seek.value)); });
+
+  // 場面の頭に飛べるボタン（確認が早い）
+  var marks = document.getElementById('marks');
+  SasatomoOP.SCENES.forEach(function (s, i) {
+    var b = document.createElement('button');
+    b.textContent = (i + 1) + '. ' + (s.text ? s.text.replace(/\n/g, '') .slice(0, 10) : 'タイトル');
+    b.style.fontSize = '12px'; b.style.padding = '6px 11px';
+    b.addEventListener('click', function () { stopPlay(); setT(s.t + 0.9); });
+    marks.appendChild(b);
+  });
+
+  setT(0);
+</script>
+</body>
+</html>
