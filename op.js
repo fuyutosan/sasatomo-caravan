@@ -619,6 +619,12 @@
     raf = requestAnimationFrame(loop);
   }
 
+  /** いま映像の何秒目か。BGMを映像の位置に合わせるために使う */
+  function currentTime() {
+    if (!raf) return 0;
+    return (performance.now() - startedAt) / 1000;
+  }
+
   window.SasatomoOP = {
     DURATION: DURATION,
     CUTS: CUTS,
@@ -626,6 +632,7 @@
     mount: mount,
     render: render,
     play: play,
-    stop: stop
+    stop: stop,
+    currentTime: currentTime
   };
 })();
