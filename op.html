@@ -5,65 +5,174 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>笹友キャラバン OP — 試写室</title>
 <style>
-  :root { --bg:#0a0d16; --fg:#e8f3ec; --accent:#7ad68f; }
+  :root { --bg:#0a0d16; --fg:#e8f3ec; --accent:#7ad68f; --dim:#8fa39a; --panel:#151c2b; }
   * { box-sizing:border-box; margin:0; padding:0; }
-  body { background:var(--bg); color:var(--fg); min-height:100vh;
-         font-family:"Yu Gothic UI","Hiragino Kaku Gothic ProN","Meiryo",sans-serif;
-         display:flex; flex-direction:column; align-items:center; gap:14px; padding:18px 12px 40px;
-         word-break:keep-all; overflow-wrap:anywhere; }
-  h1 { font-size:19px; font-weight:800; letter-spacing:.02em; }
+  body {
+    background:var(--bg); color:var(--fg); min-height:100vh; padding:18px 12px 48px;
+    font-family:"Yu Gothic UI","Hiragino Kaku Gothic ProN","Meiryo",sans-serif;
+    display:flex; flex-direction:column; align-items:center; gap:13px;
+    word-break:keep-all; overflow-wrap:anywhere;
+  }
+  h1 { font-size:19px; font-weight:800; }
   h1 span { color:var(--accent); }
-  .note { font-size:13px; opacity:.72; text-align:center; line-height:1.7; max-width:640px; }
+  .note { font-size:13px; color:var(--dim); text-align:center; line-height:1.75; max-width:620px; }
   #screen { position:relative; background:#000; border-radius:12px; overflow:hidden;
             box-shadow:0 14px 50px rgba(0,0,0,.6); }
   .bar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:center; }
-  button, select { font:inherit; font-size:14px; font-weight:700; padding:9px 16px; border-radius:999px;
-           border:2px solid rgba(255,255,255,.22); background:#182030; color:var(--fg); cursor:pointer; }
+  button, select {
+    font:inherit; font-size:14px; font-weight:700; padding:9px 16px; border-radius:999px;
+    border:2px solid rgba(255,255,255,.2); background:#182030; color:var(--fg); cursor:pointer;
+  }
   button.primary { background:var(--accent); color:#0a2a15; border-color:transparent; }
-  button:hover { filter:brightness(1.12); }
-  #seek { width:min(88vw,620px); }
-  .t { font-variant-numeric:tabular-nums; font-size:13px; opacity:.8; min-width:5.5em; text-align:center; }
+  button:hover { filter:brightness(1.13); }
+  .panel { width:min(94vw,620px); background:var(--panel); border-radius:14px; padding:15px 17px; }
+  .panel h2 { font-size:14px; font-weight:800; color:var(--accent); margin-bottom:11px; }
+  .knob { display:flex; align-items:center; gap:10px; margin-bottom:9px; font-size:13px; }
+  .knob label { width:5.4em; color:var(--dim); flex-shrink:0; }
+  .knob input[type=range] { flex:1; }
+  .knob output { width:4.2em; text-align:right; font-variant-numeric:tabular-nums; }
+  .parts { display:flex; flex-wrap:wrap; gap:7px; }
+  .pt {
+    font-size:13px; font-weight:700; padding:8px 14px; border-radius:999px; cursor:pointer;
+    border:2px solid rgba(255,255,255,.18); background:#0f1626; color:var(--dim); user-select:none;
+  }
+  .pt.on { background:var(--accent); color:#0a2a15; border-color:transparent; }
+  #seek { width:min(92vw,620px); }
+  .now { font-size:13px; display:flex; gap:12px; align-items:center; justify-content:center;
+         flex-wrap:wrap; min-height:1.5em; }
+  .now b { color:var(--accent); font-size:15px; }
+  .now .t { font-variant-numeric:tabular-nums; color:var(--dim); }
+  table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  th, td { text-align:left; padding:7px 8px; border-bottom:1px solid rgba(255,255,255,.08);
+           vertical-align:top; line-height:1.65; }
+  th { color:var(--accent); font-weight:700; white-space:nowrap; }
+  td.k { color:#ffe9a8; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  tr.live td { background:rgba(122,214,143,.1); }
+  .cuts { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; }
+  .cuts button { font-size:12px; padding:6px 11px; }
 </style>
 </head>
 <body>
   <h1>笹友キャラバン <span>OP 試写室</span></h1>
   <p class="note">
-    ゲームに入れるのと同じロジックです。つまみを動かすと「その秒の絵」が出ます。<br>
-    ここでOKが出たら、そのまま動画に書き出してYouTubeとメイメイ映画館に置きます。
+    ゲームに入っているのと同じ映像＋いま作ったBGMです。<b>音の時計を基準に映像を動かしている</b>ので、
+    どこから再生してもズレません。<br>
+    気になるところがあったら「◯秒のここ」「このパートが気になる」で教えてください🐼
   </p>
 
   <div class="bar">
     <select id="ratio">
       <option value="9:16">スマホ縦（9:16）— ゲーム・ショート用</option>
       <option value="16:9">よこ長（16:9）— YouTube用</option>
-      <option value="4:3">4:3</option>
     </select>
-    <button id="playBtn" class="primary">▶ 最初から再生</button>
-    <button id="pauseBtn">⏸ とめる</button>
+    <button id="playBtn" class="primary">▶ 音つきで再生</button>
+    <button id="pauseBtn">⏹ とめる</button>
   </div>
 
   <div id="screen"></div>
 
-  <div class="bar">
-    <input id="seek" type="range" min="0" max="27" step="0.05" value="0">
+  <input id="seek" type="range" min="0" max="31.6" step="0.05" value="0">
+  <div class="now">
     <span class="t" id="tLabel">0.00 s</span>
+    <b id="secName">—</b>
+    <span class="t" id="secKey"></span>
   </div>
-  <div class="bar" id="marks"></div>
+
+  <div class="panel">
+    <h2>つまみ</h2>
+    <div class="knob">
+      <label for="vol">音量</label>
+      <input id="vol" type="range" min="0" max="100" value="50">
+      <output id="volOut">50</output>
+    </div>
+    <div class="knob">
+      <label for="tempo">テンポ</label>
+      <input id="tempo" type="range" min="70" max="130" value="100">
+      <output id="tempoOut">×1.00</output>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>パート（切ると、どの音が気になるか分かります）</h2>
+    <div class="parts" id="parts"></div>
+  </div>
+
+  <div class="panel">
+    <h2>コンセプト対応表 — 何を、曲のどこで表現しているか</h2>
+    <p class="note" style="text-align:left; margin-bottom:11px;">
+      曲全体で <b>Am（元気が消えた町）→ C major（元気が返ってくる）</b> へ転調します。
+      「もやもや雲を笑顔にすると町に色が灯る」という話の芯と同じことを、音でも言っています。
+    </p>
+    <table id="conceptTable">
+      <thead><tr><th>時間</th><th>場面</th><th>調</th><th>音で何をしているか</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h2>場面へ飛ぶ</h2>
+    <div class="cuts" id="cuts"></div>
+  </div>
 
 <script src="op.js"></script>
+<script src="op-bgm.js"></script>
 <script>
-  var screenEl = document.getElementById('screen');
-  var seek = document.getElementById('seek');
-  var tLabel = document.getElementById('tLabel');
-  var ratioSel = document.getElementById('ratio');
+  const screenEl = document.getElementById('screen');
+  const seek = document.getElementById('seek');
+  const tLabel = document.getElementById('tLabel');
+  const secName = document.getElementById('secName');
+  const secKey = document.getElementById('secKey');
+  const ratioSel = document.getElementById('ratio');
+  const vol = document.getElementById('vol'), volOut = document.getElementById('volOut');
+  const tempo = document.getElementById('tempo'), tempoOut = document.getElementById('tempoOut');
+  const DUR = SasatomoOP.DURATION;
+
+  // パートのON/OFF状態
+  const PART_LABEL = {
+    lead: 'メロディ', harmony: 'ハーモニー', bass: 'ベース',
+    kick: 'キック（足音）', hat: 'ハット', sparkle: 'きらきら'
+  };
+  const parts = {};
+  OpBgm.PARTS.forEach(p => parts[p] = true);
+
+  const partsBox = document.getElementById('parts');
+  OpBgm.PARTS.forEach(p => {
+    const b = document.createElement('div');
+    b.className = 'pt on';
+    b.textContent = PART_LABEL[p] || p;
+    b.addEventListener('click', () => {
+      parts[p] = !parts[p];
+      b.classList.toggle('on', parts[p]);
+      if (playing) start(curT());     // 鳴っている途中でも即反映
+    });
+    partsBox.appendChild(b);
+  });
+
+  // コンセプト対応表
+  const tbody = document.querySelector('#conceptTable tbody');
+  OpBgm.SECTIONS.forEach((S, i) => {
+    const end = (i + 1 < OpBgm.SECTIONS.length) ? OpBgm.SECTIONS[i + 1].t : DUR;
+    const tr = document.createElement('tr');
+    tr.dataset.i = i;
+    tr.innerHTML = `<td class="k">${S.t.toFixed(1)}〜${end.toFixed(1)}s</td>`
+      + `<td>${S.name}</td><td class="k">${S.key}</td><td>${S.why}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  // 場面へ飛ぶボタン
+  const cutsBox = document.getElementById('cuts');
+  SasatomoOP.CUTS.forEach((c, i) => {
+    const b = document.createElement('button');
+    b.textContent = (i + 1) + '. ' + (c.text ? c.text.replace(/\n/g, '').slice(0, 9) : 'タイトル');
+    b.addEventListener('click', () => start(c.t + 0.3));
+    cutsBox.appendChild(b);
+  });
 
   function fit() {
-    var parts = ratioSel.value.split(':').map(Number);
-    var ar = parts[0] / parts[1];
-    // 画面に収まる最大サイズ。縦長のときは高さ基準、よこ長のときは幅基準
-    var maxW = Math.min(window.innerWidth - 32, 520);
-    var maxH = window.innerHeight - 300;
-    var w = maxW, h = w / ar;
+    const [a, b] = ratioSel.value.split(':').map(Number);
+    const ar = a / b;
+    let w = Math.min(window.innerWidth - 30, 460), h = w / ar;
+    const maxH = Math.max(320, window.innerHeight - 340);
     if (h > maxH) { h = maxH; w = h * ar; }
     screenEl.style.width = Math.round(w) + 'px';
     screenEl.style.height = Math.round(h) + 'px';
@@ -71,43 +180,76 @@
   }
 
   SasatomoOP.mount(screenEl);
-  seek.max = SasatomoOP.DURATION;
+  seek.max = DUR;
   fit();
   window.addEventListener('resize', fit);
   ratioSel.addEventListener('change', fit);
 
-  var raf = null, t0 = 0, playing = false;
-  function stopPlay() { if (raf) cancelAnimationFrame(raf); raf = null; playing = false; }
-  function setT(t) {
-    t = Math.max(0, Math.min(SasatomoOP.DURATION, t));
+  let raf = null, playing = false, fallbackT0 = 0, fallbackFrom = 0;
+
+  function curT() {
+    // 音が鳴っているときは音の時計を使う。音を切っているときは自前の時計。
+    if (OpBgm.isPlaying()) return OpBgm.currentTime();
+    return fallbackFrom + (performance.now() - fallbackT0) / 1000;
+  }
+
+  function paint(t) {
+    t = Math.max(0, Math.min(DUR, t));
     seek.value = t;
     tLabel.textContent = t.toFixed(2) + ' s';
     SasatomoOP.render(t);
+    const s = OpBgm.sectionAt(t);
+    secName.textContent = s.section.name;
+    secKey.textContent = s.section.key + '　' + s.section.bpm + ' BPM';
+    document.querySelectorAll('#conceptTable tbody tr').forEach(tr =>
+      tr.classList.toggle('live', +tr.dataset.i === s.index));
   }
-  document.getElementById('playBtn').addEventListener('click', function () {
-    stopPlay(); playing = true; t0 = performance.now();
-    (function loop(now) {
+
+  function stopAll() {
+    if (raf) cancelAnimationFrame(raf);
+    raf = null; playing = false;
+    OpBgm.stop();
+  }
+
+  function start(from) {
+    stopAll();
+    from = Math.max(0, Math.min(DUR - 0.2, from || 0));
+    playing = true;
+    fallbackFrom = from; fallbackT0 = performance.now();
+    OpBgm.play(null, {
+      parts: parts,
+      volume: vol.value / 100,
+      tempoScale: tempo.value / 100,
+      from: from
+    });
+    const loop = () => {
       if (!playing) return;
-      var t = (now - t0) / 1000;
-      if (t >= SasatomoOP.DURATION) { setT(SasatomoOP.DURATION); stopPlay(); return; }
-      setT(t);
+      const t = curT();
+      if (t >= DUR) { paint(DUR); stopAll(); return; }
+      paint(t);
       raf = requestAnimationFrame(loop);
-    })(performance.now());
-  });
-  document.getElementById('pauseBtn').addEventListener('click', stopPlay);
-  seek.addEventListener('input', function () { stopPlay(); setT(parseFloat(seek.value)); });
+    };
+    loop();
+  }
 
-  // 場面の頭に飛べるボタン（確認が早い）
-  var marks = document.getElementById('marks');
-  SasatomoOP.SCENES.forEach(function (s, i) {
-    var b = document.createElement('button');
-    b.textContent = (i + 1) + '. ' + (s.text ? s.text.replace(/\n/g, '') .slice(0, 10) : 'タイトル');
-    b.style.fontSize = '12px'; b.style.padding = '6px 11px';
-    b.addEventListener('click', function () { stopPlay(); setT(s.t + 0.9); });
-    marks.appendChild(b);
+  document.getElementById('playBtn').addEventListener('click', () => start(0));
+  document.getElementById('pauseBtn').addEventListener('click', stopAll);
+  seek.addEventListener('input', () => { stopAll(); paint(parseFloat(seek.value)); });
+  vol.addEventListener('input', () => { volOut.textContent = vol.value; if (playing) start(curT()); });
+  tempo.addEventListener('input', () => {
+    tempoOut.textContent = '×' + (tempo.value / 100).toFixed(2);
+    if (playing) start(curT());
   });
 
-  setT(0);
+  paint(0);
+
+  // 動画に音を焼き込むとき用（Playwrightから呼ぶ）。ブラウザで触る必要はない。
+  window.__renderBgmWav = () => OpBgm.renderToWav({ volume: 0.5 }).then(blob =>
+    new Promise(res => {
+      const r = new FileReader();
+      r.onload = () => res(r.result.split(',')[1]);   // base64
+      r.readAsDataURL(blob);
+    }));
 </script>
 </body>
 </html>
