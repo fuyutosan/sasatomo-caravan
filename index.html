@@ -771,8 +771,14 @@
   #zukanShareBody canvas { width: 100%; height: auto; display: block; border: 2px solid var(--dark); }
   #gachaShareBody canvas { width: 100%; height: auto; display: block; border: 2px solid var(--dark); }
 </style>
+<style>
+  /* OPアニメーション（op.js）を映す幕。ゲームより前に、画面いっぱいで出す */
+  #opOverlay { position:fixed; inset:0; z-index:9999; background:#000; display:none; }
+  #opOverlay.on { display:block; }
+</style>
 </head>
 <body>
+<div id="opOverlay"></div>
 <div class="bezel">
 <div class="phone">
 
@@ -780,6 +786,7 @@
     <div class="head-row">
       <h1>🐼 笹友キャラバン</h1>
       <button id="bandIconBtn" class="band-icon-btn" title="いまの時間帯">🌙</button>
+      <button id="opReplayBtn" class="bgm-toggle" title="OPをもう一度見る">🎬</button>
       <button id="bgmToggleBtn" class="bgm-toggle" title="BGM ON/OFF" aria-pressed="false">🎵</button>
     </div>
     <div class="status"><span>🎋 笹 <span id="sasaCount">0</span></span><span>✨ パンダさんパワー <span id="powerCount">0</span></span></div>
@@ -1879,6 +1886,7 @@
     return {
       sasa: 100,
       sasaScaleV2: true, // 2026-07-25 笹の全体スケールを1/10にした移行フラグ。これが無い旧セーブは起動時に一度だけ /10 する
+      opShown: false,    // OPアニメを見せたか（初回だけ自動再生。🎬ボタンでいつでも見られる）
       pandaPower: 0,
       owned: { taicho: { awaken: 0 } },
       party: ['taicho', null, null, null],
@@ -5216,6 +5224,28 @@
 
     bindUIEvents();
     saveState();
+
+    // OPアニメーション（op.js）。初回だけ自動で流す。
+    // ここで流すのは、この行に来た時点でゲームの準備が終わっているから。
+    // OPを見ているあいだに、るすばん報告もふくめて全部そろっている状態になる。
+    const opBtn = document.getElementById('opReplayBtn');
+    if (opBtn) opBtn.addEventListener('click', playOpening);
+    if (!state.opShown) {
+      state.opShown = true;
+      saveState();
+      playOpening();
+    }
+  }
+
+  /** OPを流す。ヘッダーの🎬からいつでも見られる */
+  function playOpening() {
+    const ov = document.getElementById('opOverlay');
+    if (!ov || !window.SasatomoOP) return;
+    ov.classList.add('on');
+    SasatomoOP.play(ov, {
+      skippable: true,
+      onEnd: function () { ov.classList.remove('on'); }
+    });
   }
 
   // 動作確認用（Playwright等の外部検証がstate・内部関数を見られるように。BgmEngineの公開と同じ趣旨）
@@ -5355,6 +5385,7 @@
   window.addEventListener('DOMContentLoaded', function () { init(); });
 })();
 </script>
+<script src="op.js"></script>
 <script>
   // PWA: サービスワーカー登録（https配信時のみ。file://での開発時は何もしない）
   if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
