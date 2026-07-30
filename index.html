@@ -772,13 +772,15 @@
   #gachaShareBody canvas { width: 100%; height: auto; display: block; border: 2px solid var(--dark); }
 </style>
 <style>
-  /* OPアニメーション（op.js）を映す幕。ゲームより前に、画面いっぱいで出す */
-  #opOverlay { position:fixed; inset:0; z-index:9999; background:#000; display:none; }
-  #opOverlay.on { display:block; }
+  /* OPアニメーション（op.js）とクリアムービー（clear.js）を映す幕。
+     それぞれ中に自前のDOMを作るので、幕は別々に用意する（同じ幕に重ねると両方の絵が出る） */
+  #opOverlay, #clearOverlay { position:fixed; inset:0; z-index:9999; background:#000; display:none; }
+  #opOverlay.on, #clearOverlay.on { display:block; }
 </style>
 </head>
 <body>
 <div id="opOverlay"></div>
+<div id="clearOverlay"></div>
 <div class="bezel">
 <div class="phone">
 
@@ -1887,6 +1889,7 @@
       sasa: 100,
       sasaScaleV2: true, // 2026-07-25 笹の全体スケールを1/10にした移行フラグ。これが無い旧セーブは起動時に一度だけ /10 する
       opShown: false,    // OPアニメを見せたか（初回だけ自動再生。🎬ボタンでいつでも見られる）
+      everCleared: false, // 世界をひとまわりしたことがあるか（🎬でクリアムービーを見返せる）
       pandaPower: 0,
       owned: { taicho: { awaken: 0 } },
       party: ['taicho', null, null, null],
@@ -2704,6 +2707,8 @@
           addJournalEntry(clearedName + 'を元気にした');
           captureSnap('town', { name: clearedName });
           BgmEngine.playFanfare();
+          // 80町ぜんぶクリア＝クリアムービー上映（旅路ごとに1回だけ。🎬長押しでいつでも見返せる）
+          setTimeout(playClearMovie, 1200);   // クリアトーストをひと目見せてから
         }
         break;
       }
@@ -5229,12 +5234,49 @@
     // ここで流すのは、この行に来た時点でゲームの準備が終わっているから。
     // OPを見ているあいだに、るすばん報告もふくめて全部そろっている状態になる。
     const opBtn = document.getElementById('opReplayBtn');
-    if (opBtn) opBtn.addEventListener('click', playOpening);
+    if (opBtn) opBtn.addEventListener('click', function () {
+      // 世界をひとまわりした人には、どっちを見るか選んでもらう（クリア前はOP一択）
+      if (state.everCleared && window.SasatomoClear) {
+        if (window.confirm('クリアムービーを見る？（キャンセル＝オープニング）')) { playClearMovie(); return; }
+      }
+      playOpening();
+    });
     if (!state.opShown) {
       state.opShown = true;
       saveState();
       playOpening();
     }
+  }
+
+  /** クリアムービーを流す（80町クリアの瞬間＋🎬から見返し）。作りはplayOpeningと同じ型 */
+  function playClearMovie() {
+    const ov = document.getElementById('clearOverlay');
+    if (!ov || !window.SasatomoClear) return;
+    state.everCleared = true;   // 🎬ボタンでの見返しを解禁するしるし
+    saveState();
+    ov.classList.add('on');
+
+    const bgmBtn = document.getElementById('bgmToggleBtn');
+    const gameBgmWasOn = !!(bgmBtn && bgmBtn.classList.contains('on'));
+    if (gameBgmWasOn) bgmBtn.click();
+
+    SasatomoClear.play(ov, {
+      skippable: true,
+      onEnd: function () {
+        ov.classList.remove('on');
+        if (window.ClearBgm) ClearBgm.stop();
+        if (gameBgmWasOn) bgmBtn.click();
+      }
+    });
+
+    let bgmStarted = false;
+    const startBgm = function () {
+      if (bgmStarted || !window.ClearBgm) return;
+      bgmStarted = true;
+      try { ClearBgm.play(null, { volume: 0.5, from: SasatomoClear.currentTime() }); } catch (e) {}
+    };
+    startBgm();
+    ov.addEventListener('pointerdown', startBgm, { once: true });
   }
 
   /** OPを流す。ヘッダーの🎬からいつでも見られる */
@@ -5409,6 +5451,8 @@
 </script>
 <script src="op.js"></script>
 <script src="op-bgm.js"></script>
+<script src="clear.js"></script>
+<script src="clear-bgm.js"></script>
 <script>
   // PWA: サービスワーカー登録（https配信時のみ。file://での開発時は何もしない）
   if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
