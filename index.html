@@ -271,6 +271,22 @@
   .pop.rising { animation: rise 1.4s ease-out forwards; }
   @keyframes rise { 0% { opacity: 0; transform: translateY(10px); } 25% { opacity: 1; } 100% { opacity: 0; transform: translateY(-26px); } }
 
+  /* ── ゲージポップ「+◯ げんき」：雲を浄化したその場（もやもや雲の位置）に浮かんで消える（2026-07-30 バランス改修） ── */
+  .gauge-pop {
+    position: absolute; bottom: 214px; right: 14px;
+    font-size: 12px; color: #ffe066; font-weight: bold;
+    text-shadow: 1px 1px 0 #3a2a45;
+    z-index: 6; opacity: 0;
+  }
+  .gauge-pop.rising { animation: riseGauge 1.4s ease-out forwards; }
+  .gauge-pop.rainbow { color: #ff5252; font-size: 14px; text-shadow: 1px 1px 0 #3a2a45, 0 0 6px #ffe066; }
+  @keyframes riseGauge { 0% { opacity: 0; transform: translateY(10px); } 25% { opacity: 1; } 100% { opacity: 0; transform: translateY(-30px); } }
+
+  /* ── にじいろ雲（クリア後の世界・2周目以降）：既存の雲画像に虹色フィルターをかける演出 ── */
+  .moyamoya.rainbow-cloud { animation: wobble 1.6s ease-in-out infinite, rainbowHue 2.4s linear infinite; }
+  .moyamoya.rainbow-cloud.smiling { animation: cloudSmilePop .35s ease-out, rainbowHue 2.4s linear infinite; }
+  @keyframes rainbowHue { 0% { filter: hue-rotate(0deg) saturate(2); } 100% { filter: hue-rotate(360deg) saturate(2); } }
+
   .toast {
     position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
     background: rgba(20, 10, 25, .8); color: #fff; font-size: 12px;
@@ -818,6 +834,7 @@
     <div class="smile-clouds" id="smileCloudsEl"></div>
     <div class="toast" id="toast"></div>
     <div class="pop" id="popText"></div>
+    <div class="gauge-pop" id="gaugePopText"></div>
     <div class="moyamoya" id="moyamoyaEl" style="display:none;"></div>
     <div class="chat-bubble" id="chatBubbleEl"></div>
     <div class="campfire" id="campfireEl">
@@ -877,7 +894,7 @@
         </div>
         <button class="btn auto-formation" id="autoFormationBtn">✨ おまかせ編成</button>
         <div class="slots" id="partySlots"></div>
-        <p class="total">キャラバン総合力 <b id="totalPowerText">0</b><br>→ るすばん中に稼げるパンダさんパワーが変わるよ</p>
+        <p class="total">キャラバン総合力 <b id="totalPowerText">0</b><br>→ 雲1体でもらえる げんき（町がすすむ速さ）が変わるよ</p>
         <p class="smile-force">😊 笑顔にする力 <b id="smileForceText">100%</b>（おおもやもや戦の強さ）</p>
         <p class="formation" id="formationText"></p>
         <div class="reason-box" id="reasonBox"></div>
@@ -1191,7 +1208,7 @@
     equipEffectCountByRarity: { futsu: 1, suteki: 1, totteoki: 2, densetsu: 3 },
     equipValueRangeByRarity: { futsu: [3, 8], suteki: [5, 12], totteoki: [8, 18], densetsu: [12, 25] },
     inventoryMax: 30,
-    offlineCapMs: 12 * 3600 * 1000,
+    offlineCapMs: 24 * 3600 * 1000, // 12時間→24時間（2026-07-30 バランス改修：るすばんで丸1日ぶん精算できるように）
     offlineMinMs: 60 * 1000,
     saveIntervalMs: 1000,
     pityCost: { SSR: 50, UR: 100, awaken: 20, item: 10 }, // おむかえポイントの交換コスト
@@ -1213,6 +1230,7 @@
     bossPassiveDpsPerPurify: 5, // 「じわじわ（放置）」1分あたりのダメージ = これ × stats.purifyMult（オンライン中もオフライン中も進む）
     bossConfidentRatio: 1.05, // 60秒ぶんの想定削り量がHPのこの倍率以上→😊勝てそう！
     bossCloseRatio: 0.85,     // 〜この倍率以上なら😅いい勝負／それ未満は😰まだきびしいかも
+    bossPowerDivisor: 400, // ボス与ダメージの総合力倍率 = max(1, totalPower / これ)（2026-07-30 バランス改修：へんせいの強さがボス戦にも効くように）
     goldenLetterRates: { SSR: 0.875, UR: 0.125 }, // 金の手紙＝SSR以上確定（3.5:0.5の比率のまま正規化）
     // ── 夜キャンプ（展望アイデア帳.md⑥）：夜の帯のあいだ、10分ごとに約60秒キャラバンが焚き火休憩する。収入・進行には一切影響しない見た目だけの演出 ──
     campIntervalMs: 10 * 60 * 1000,
@@ -1221,8 +1239,15 @@
     chatterMinMs: 20000,
     chatterMaxMs: 40000,
     // ── 転生「あたらしい旅路」（企画書.md§4-6・Trimps方式の恒久ボーナス） ──
-    journeyRequirementMult: 2.2,     // 周回(journeyCount)ごとに町の必要浄化量・ボスHPが×2.2
+    journeyRequirementMult: 1.5,     // 周回(journeyCount)ごとに町の必要浄化量・ボスHPが×1.5（2026-07-30 バランス改修：2.2→1.5、テンポ重視で周回しやすく）
     journeyIncomeBonusPerLevel: 0.10, // 周回+1ごとに全収入(笹・パンダさんパワー)+10%（累積）
+    journeyGaugeBonusPerLevel: 0.25, // 周回+1ごとに雲のゲージ価値+25%（加算式・2026-07-30 バランス改修：クリア後の周回を気持ちよくするため）
+    // ── ゲージ・ボスへの総合力配線（2026-07-30 バランス改修：へんせいの強さがそのまま町のすすみやすさに直結するように） ──
+    gaugePowerDivisor: 100, // 雲1体のゲージ価値 = max(1, totalPower / これ)
+    // ── にじいろ雲（クリア後の世界・2周目以降のみ出現） ──
+    rainbowCloudChance: 0.06, // 2周目以降、雲がにじいろ雲になる確率（2026-07-30 バランス改修）
+    rainbowCloudGaugeMult: 5, // にじいろ雲のゲージ価値の倍率
+    rainbowCloudSasaMult: 5,  // にじいろ雲の笹報酬の倍率
   };
 
   const SAVE_KEY = 'sasatomo-caravan-v1';
@@ -1914,6 +1939,7 @@
       lastMemoryCheckDate: null, // 日付が変わったらdays+1する判定用（null=まだ未チェック→起動時に必ず1回加算される）
       snaps: [],         // 旅のスナップ（記念アルバム・レシピのみ保存。最大60件・古い順自動削除）
       journeyCount: 1,   // 転生（あたらしい旅路）の周回数。企画書.md§4-6・Trimps方式の恒久ボーナス
+      rainbowCloudSeen: false, // にじいろ雲に初めて出会ったか（旅日記への初回記録の重複防止。2026-07-30 バランス改修）
     };
   }
   let state = null;
@@ -2653,7 +2679,23 @@
   function journeyIncomeMult() {
     return 1 + ((state.journeyCount || 1) - 1) * BALANCE.journeyIncomeBonusPerLevel;
   }
-  // 町の必要浄化量（journeyCountぶん×2.2）。TOWNS配列そのものは変更しない＝周回ごとに毎回計算するだけ
+  // 周回+1ごとに雲のゲージ価値+25%（加算式）。1周目は等倍（2026-07-30 バランス改修）
+  function journeyGaugeMult() {
+    return 1 + ((state.journeyCount || 1) - 1) * BALANCE.journeyGaugeBonusPerLevel;
+  }
+  // ボスへ与えるダメージの総合力倍率 = max(1, totalPower / bossPowerDivisor)（2026-07-30 バランス改修）
+  function bossPowerMult(totalPower) {
+    return Math.max(1, (totalPower || 0) / BALANCE.bossPowerDivisor);
+  }
+  // 雲1体ぶんのゲージ価値 = max(1, totalPower / gaugePowerDivisor) × 周回ボーナス（2026-07-30 バランス改修：へんせいの強さが町のすすみやすさに直結する）
+  function gaugePerCloud(stats) {
+    return Math.max(1, Math.round((stats.totalPower / BALANCE.gaugePowerDivisor) * journeyGaugeMult()));
+  }
+  // 2周目以降だけ、雲が「にじいろ雲」になるかどうかを毎回抽選する
+  function rollRainbowCloud() {
+    return (state.journeyCount || 1) >= 2 && Math.random() < BALANCE.rainbowCloudChance;
+  }
+  // 町の必要浄化量（journeyCountぶん×journeyRequirementMult）。TOWNS配列そのものは変更しない＝周回ごとに毎回計算するだけ
   function townRequirement(i) {
     return Math.round(TOWNS[i].requirement * journeyScaleMult());
   }
@@ -2663,7 +2705,7 @@
   }
   function startRebirth() {
     if (!canRebirth()) return;
-    const ok = window.confirm('世界をひとまわりしたよ！あたらしい旅路では 町の元気が もっと必要になるけど、キャラバンは もっと強くなる。あたらしい旅路へ出発する？');
+    const ok = window.confirm('世界をひとまわりしたよ！あたらしい旅路では 町の元気が もっと必要になるけど、雲のげんきが +' + Math.round(BALANCE.journeyGaugeBonusPerLevel * 100) + '%、にじいろ雲が出るようになるよ。おさそいの手紙と金の手紙も もらえる。あたらしい旅路へ出発する？');
     if (!ok) return;
     state.journeyCount = (state.journeyCount || 1) + 1;
     // リセットされるもの：町の進行・今の旅路でのボス勝利状況（再挑戦可能に）
@@ -2676,6 +2718,7 @@
     // 維持されるもの：なかま・覚醒・装備・持ち物・笹・パンダさんパワー・おむかえpt・金の手紙・日記・スナップ・思い出・笑顔雲(bossEverWon)は
     // ここで一切触らない＝そのまま残る
     state.ticket = (state.ticket || 0) + 1; // 旅路ボーナス(b)：おさそいの手紙+1枚
+    state.goldenLetters = (state.goldenLetters || 0) + 1; // 旅路ボーナス(c)：金の手紙+1枚（2026-07-30 バランス改修）
     captureSnap('journey', { name: state.journeyCount + '周目の旅' });
     addJournalEntry('🌈 あたらしい旅路がはじまった（' + state.journeyCount + '周目）');
     showToast('🌈 あたらしい旅路が はじまったよ！（' + state.journeyCount + '周目）'); // captureSnapの汎用トーストを上書きして最終表示させる
@@ -2686,10 +2729,14 @@
   /* ============================================================
    * 町・浄化の進行
    * ============================================================ */
-  function advanceTownGauge(n) {
+  // clouds＝実際に浄化した雲の数（totalCloudsClearedの実績値はこのまま加算）。
+  // gaugeGain＝町の元気ゲージに加算する量（総合力・周回ボーナス・にじいろ雲で clouds とは別の値になりうる。省略時は clouds をそのまま使う＝旧仕様互換）。
+  // （2026-07-30 バランス改修：雲の数とゲージ価値を分離して、キャラバン総合力が町のすすみやすさに反映されるように配線）
+  function advanceTownGauge(clouds, gaugeGain) {
+    const n = (gaugeGain !== undefined && gaugeGain !== null) ? gaugeGain : clouds;
     const beforeWagonLv = wagonLevel();
     state.gauge += n;
-    state.totalCloudsCleared += n;
+    state.totalCloudsCleared += clouds;
     while (state.townIndex < TOWNS.length && state.gauge >= townRequirement(state.townIndex)) {
       state.clearedTowns++;
       const clearedName = TOWNS[state.townIndex].name;
@@ -2767,19 +2814,26 @@
   }
 
   // 1セグメントぶんの雲消化数・獲得量を計算する純関数（statsは呼び出し側でそのセグメントの帯/時刻ぶんを計算済みのものを渡す）
+  // gaugeGain＝町の元気ゲージに加算する量（総合力配線・にじいろ雲の期待値ぶんを反映。2026-07-30 バランス改修）
   function calcSegmentRewards(stats, durationMs) {
-    if (durationMs <= 0) return { clouds: 0, sasaGain: 0, powerGain: 0 };
+    if (durationMs <= 0) return { clouds: 0, sasaGain: 0, powerGain: 0, gaugeGain: 0 };
     const avgInterval = ((BALANCE.cloudIntervalMin + BALANCE.cloudIntervalMax) / 2) / stats.speedMult;
     const avgPurify = Math.max(BALANCE.cloudBaseTimeMin, BALANCE.cloudBaseTime / stats.purifyMult);
     const cycle = avgInterval + avgPurify;
     const clouds = Math.max(0, Math.floor(durationMs / cycle));
     const journeyMult = stats.journeyMult || 1; // 旅路ボーナス(a)：獲得量にだけかける（浄化にかかる時間＝avgPurifyには影響させない）
+    // にじいろ雲（2周目以降のみ）：るすばんは1体ずつ抽選できないので、ゲージ・笹だけ期待値 ×(1 + chance×(mult−1)) を掛ける（パンダさんパワーは対象外）
+    const rainbowActive = (state.journeyCount || 1) >= 2;
+    const rainbowGaugeFactor = rainbowActive ? (1 + BALANCE.rainbowCloudChance * (BALANCE.rainbowCloudGaugeMult - 1)) : 1;
+    const rainbowSasaFactor = rainbowActive ? (1 + BALANCE.rainbowCloudChance * (BALANCE.rainbowCloudSasaMult - 1)) : 1;
     let sasaGain = 0, powerGain = 0;
     for (let i = 0; i < clouds; i++) {
       sasaGain += Math.round(rand(BALANCE.sasaRewardMin, BALANCE.sasaRewardMax) * stats.sasaMult * journeyMult);
       powerGain += Math.round(rand(BALANCE.powerRewardMin, BALANCE.powerRewardMax) * stats.purifyMult * journeyMult);
     }
-    return { clouds: clouds, sasaGain: sasaGain, powerGain: powerGain };
+    sasaGain = Math.round(sasaGain * rainbowSasaFactor);
+    const gaugeGain = Math.round(clouds * gaugePerCloud(stats) * rainbowGaugeFactor);
+    return { clouds: clouds, sasaGain: sasaGain, powerGain: powerGain, gaugeGain: gaugeGain };
   }
 
   // るすばん全帯精算の本体（純関数：state更新はせず計算結果だけを返す。呼び出し元のapplyOfflineReportがstateに反映する）
@@ -2794,17 +2848,18 @@
     const virtualToMs = cappedFromMs + effectiveSpan;
 
     const segments = splitIntoBandSegments(cappedFromMs, virtualToMs);
-    let totalClouds = 0, totalSasa = 0, totalPower = 0;
+    let totalClouds = 0, totalSasa = 0, totalPower = 0, totalGauge = 0;
     const bandTotals = {};
     const bandOrder = [];
     segments.forEach(function (seg) {
       const segStats = computeStats(seg.band, seg.hour);
       const r = calcSegmentRewards(segStats, seg.end - seg.start);
-      totalClouds += r.clouds; totalSasa += r.sasaGain; totalPower += r.powerGain;
-      if (!bandTotals[seg.band]) { bandTotals[seg.band] = { clouds: 0, sasaGain: 0, powerGain: 0 }; bandOrder.push(seg.band); }
+      totalClouds += r.clouds; totalSasa += r.sasaGain; totalPower += r.powerGain; totalGauge += r.gaugeGain;
+      if (!bandTotals[seg.band]) { bandTotals[seg.band] = { clouds: 0, sasaGain: 0, powerGain: 0, gaugeGain: 0 }; bandOrder.push(seg.band); }
       bandTotals[seg.band].clouds += r.clouds;
       bandTotals[seg.band].sasaGain += r.sasaGain;
       bandTotals[seg.band].powerGain += r.powerGain;
+      bandTotals[seg.band].gaugeGain += r.gaugeGain;
     });
 
     const dropChance = Math.min(BALANCE.dropChanceCap, BALANCE.dropBaseChance * liveStats.findMult);
@@ -2815,10 +2870,10 @@
     if (liveStats.hasNagareboshi) itemsGain += 1; // ながれぼし「ねがいごとシャワー」：全帯合算後に+1確定
 
     return {
-      clouds: totalClouds, sasaGain: totalSasa, powerGain: totalPower, itemsGain: itemsGain,
+      clouds: totalClouds, sasaGain: totalSasa, powerGain: totalPower, gaugeGain: totalGauge, itemsGain: itemsGain,
       hasHanamaru: liveStats.hasHanamaru,
       bandTotals: bandTotals, bandOrder: bandOrder, segments: segments,
-      purifyMult: liveStats.purifyMult, effectiveSpanMs: effectiveSpan, // ボスのじわじわ討伐（applyOfflineReport側）で使う
+      purifyMult: liveStats.purifyMult, totalPowerLive: liveStats.totalPower, effectiveSpanMs: effectiveSpan, // ボスのじわじわ討伐（applyOfflineReport側）で使う
     };
   }
 
@@ -2856,7 +2911,7 @@
     const result = calcOfflineRewards(fromMs, toMs);
     state.sasa += result.sasaGain;
     state.pandaPower += result.powerGain;
-    advanceTownGauge(result.clouds);
+    advanceTownGauge(result.clouds, result.gaugeGain);
     bumpMemoriesForCloudsResolved(result.clouds); // るすばん精算ぶんもいまの編成に加算
     for (let i = 0; i < result.itemsGain; i++) {
       const item = generateItem(result.hasHanamaru);
@@ -2867,7 +2922,7 @@
     result.storyLines = buildBandStoryLines(result.bandOrder, result.bandTotals);
 
     // ボスのじわじわ討伐：るすばん中の経過時間ぶんもHPを削る（寝てる間に倒せる）
-    const justWonAreas = applyBossPassiveDecay(result.purifyMult, result.effectiveSpanMs);
+    const justWonAreas = applyBossPassiveDecay(result.purifyMult, result.effectiveSpanMs, result.totalPowerLive);
     result.bossWins = justWonAreas.map(function (area) { return grantBossWin(area, { silent: true }); });
 
     return result;
@@ -2880,7 +2935,7 @@
   function q(id) { return document.getElementById(id); }
 
   function cacheEls() {
-    ['sasaCount', 'powerCount', 'townText', 'townFill', 'townPct', 'toast', 'popText', 'moyamoyaEl',
+    ['sasaCount', 'powerCount', 'townText', 'townFill', 'townPct', 'toast', 'popText', 'gaugePopText', 'moyamoyaEl',
      'caravanEl', 'reportCard', 'reportDiary', 'reportList', 'reportClaimBtn', 'dropCard', 'dropIcon',
      'dropRank', 'dropName', 'dropNewBadge', 'dropFx', 'welcomeCard', 'partySlots', 'totalPowerText',
      'formationText', 'smileForceText', 'autoFormationBtn', 'autoEquipBtn', 'equipSlots', 'invCount', 'invList', 'gachaPullBtn', 'ticketText',
@@ -2958,6 +3013,19 @@
     el.popText.classList.add('rising');
     if (popTimer) clearTimeout(popTimer);
     popTimer = setTimeout(function () { el.popText.classList.remove('rising'); }, 1500);
+  }
+
+  // 雲を浄化した位置に「+◯ げんき」を浮かせて消す（にじいろ雲のときは目立つ色に。2026-07-30 バランス改修）
+  let gaugePopTimer = null;
+  function showGaugePop(gaugeGain, isRainbow) {
+    if (!el.gaugePopText) return;
+    el.gaugePopText.textContent = (isRainbow ? '🌈 ' : '') + '+' + fmt(gaugeGain) + ' げんき';
+    el.gaugePopText.classList.remove('rising');
+    el.gaugePopText.classList.toggle('rainbow', !!isRainbow);
+    void el.gaugePopText.offsetWidth;
+    el.gaugePopText.classList.add('rising');
+    if (gaugePopTimer) clearTimeout(gaugePopTimer);
+    gaugePopTimer = setTimeout(function () { el.gaugePopText.classList.remove('rising'); }, 1500);
   }
 
   // もやもや雲の中身を描画（差し替えはCLOUD_ICON定数を変えるだけでここが吸収する）
@@ -3140,7 +3208,8 @@
 
     const sec1 = '<p>ぜんいん ちがう とくい → ぜんぶの もうけが +' + balancePct + '%</p>' +
       '<p>おなじ とくいが 2人 → その分野が +' + spec2Pct + '%／3人いじょう → +' + spec3Pct + '%</p>' +
-      '<div class="tips-note">📣 おうえん上手を そろえると 全員が 強くなるから、レアが たかい子より つよい組みあわせに なることも あるよ。</div>';
+      '<div class="tips-note">📣 おうえん上手を そろえると 全員が 強くなるから、レアが たかい子より つよい組みあわせに なることも あるよ。</div>' +
+      '<div class="tips-note">🐼 キャラバン総合力が たかいほど、町がすすむ速さ（雲1体でもらえる げんき）も あがるよ。おおもやもやに あたえる ダメージも 同じように つよくなるよ。</div>';
 
     const rarities = ['N', 'R', 'SR', 'SSR', 'UR'];
     let awakenRows = '';
@@ -3511,12 +3580,13 @@
   function bossHpForArea(area) {
     return Math.round(BALANCE.bossHpBase * Math.pow(BALANCE.bossHpGrowth, area - 1) * journeyScaleMult());
   }
-  function bossDamageForElapsed(purifyMult, elapsedMs) {
-    return BALANCE.bossDpsPerPurifyMult * purifyMult * (elapsedMs / 1000);
+  // totalPower省略時は倍率1倍（総合力が分からない呼び出し元との後方互換）。2026-07-30 バランス改修：へんせいの強さがボス与ダメージにも効くように
+  function bossDamageForElapsed(purifyMult, elapsedMs, totalPower) {
+    return BALANCE.bossDpsPerPurifyMult * purifyMult * (elapsedMs / 1000) * bossPowerMult(totalPower);
   }
   // じわじわ（放置）1分あたりのダメージ
-  function bossPassiveDamageForElapsed(purifyMult, elapsedMs) {
-    return BALANCE.bossPassiveDpsPerPurify * purifyMult * (elapsedMs / 60000);
+  function bossPassiveDamageForElapsed(purifyMult, elapsedMs, totalPower) {
+    return BALANCE.bossPassiveDpsPerPurify * purifyMult * (elapsedMs / 60000) * bossPowerMult(totalPower);
   }
 
   // そのエリアの「いま残っているHP」（挑戦バトル・じわじわ討伐、両方の削り分をここに永続化する）
@@ -3541,13 +3611,13 @@
   // 「いますぐ挑戦」バトル（毎回フルHPからの60秒勝負・state.bossHpには一切触れない）とは完全に独立した軸なので、
   // バトル中かどうかに関わらずここは常に進める（2026-07-25 仕様変更：削り持ち越しを廃止し2軸を完全独立させた）。
   // 戻り値：この呼び出しでHP0になった（笑顔になった）エリア番号の配列
-  function applyBossPassiveDecay(purifyMult, elapsedMs) {
+  function applyBossPassiveDecay(purifyMult, elapsedMs, totalPower) {
     if (!elapsedMs || elapsedMs <= 0) return [];
     const justWon = [];
     unlockedUnwonBossAreas().forEach(function (area) {
       const cur = currentBossHp(area);
       if (cur <= 0) return; // 既に0（勝利処理待ち）は再通知しない＝grantBossWinの多重呼び出し防止
-      const dmg = bossPassiveDamageForElapsed(purifyMult, elapsedMs);
+      const dmg = bossPassiveDamageForElapsed(purifyMult, elapsedMs, totalPower);
       const next = Math.max(0, cur - dmg);
       state.bossHp[area] = next;
       if (next <= 0) justWon.push(area);
@@ -3560,7 +3630,7 @@
     const stats = computeStats();
     const cur = currentBossHp(area);
     if (cur <= 0) return 0;
-    const dpsPerMinute = BALANCE.bossPassiveDpsPerPurify * stats.purifyMult;
+    const dpsPerMinute = BALANCE.bossPassiveDpsPerPurify * stats.purifyMult * bossPowerMult(stats.totalPower);
     if (dpsPerMinute <= 0) return Infinity;
     return (cur / dpsPerMinute) / 60;
   }
@@ -3615,7 +3685,7 @@
   function bossWinEstimate(area) {
     const stats = computeStats();
     const maxHp = bossHpForArea(area);
-    const estDamage = bossDamageForElapsed(stats.purifyMult, BALANCE.bossBattleMs);
+    const estDamage = bossDamageForElapsed(stats.purifyMult, BALANCE.bossBattleMs, stats.totalPower);
     const ratio = estDamage / maxHp;
     let level;
     if (ratio >= BALANCE.bossConfidentRatio) level = 'confident';
@@ -3690,7 +3760,7 @@
     if (!runtime.boss || !runtime.boss.active) return;
     const elapsed = Date.now() - runtime.boss.startedAt;
     const stats = computeStats();
-    const damage = bossDamageForElapsed(stats.purifyMult, elapsed);
+    const damage = bossDamageForElapsed(stats.purifyMult, elapsed, stats.totalPower);
     const hp = Math.max(0, runtime.boss.maxHp - damage);
     // 【意図的にstate.bossHpへは書き込まない】じわじわの進捗はapplyBossPassiveDecayだけが変える（バトルの勝敗に影響されない）
     renderBossProgress(hp, runtime.boss.maxHp, Math.max(0, runtime.boss.timeLimitMs - elapsed));
@@ -4543,9 +4613,11 @@
       const owned = state.owned[id];
       const awaken = owned.awaken || 0;
       const cap = awakenCapFor(def.rarity);
+      // きそポイント +◯：1レベルぶんの基礎値の伸び幅（base × awakenBonusByRarity、レベルによらず一定。2026-07-30 バランス改修で表示追加）
+      const basePointGain = Math.round(BALANCE.baseStatByRarity[def.rarity] * (BALANCE.awakenBonusByRarity[def.rarity] || 0));
       html += '<div class="modal-list-item" data-action="redeem-awaken" data-id="' + id + '">' +
         '<img src="' + (def.image || IMG) + '" alt=""><div class="mmeta"><b>' + def.name + ' ★' + awaken +
-        '</b>（覚醒 Lv' + awaken + ' → Lv' + (awaken + 1) + '／さいだいLv' + cap + '）<br>' + def.talents.join('・') + '</div></div>';
+        '</b>（覚醒 Lv' + awaken + ' → Lv' + (awaken + 1) + '／さいだいLv' + cap + '・きそポイント +' + fmt(basePointGain) + '）<br>' + def.talents.join('・') + '</div></div>';
     });
     el.modalList.innerHTML = html;
     el.modalOverlay.style.display = 'flex';
@@ -4810,6 +4882,14 @@
     if (cloudImg) cloudImg.src = CLOUD_ICON.value; // 困り顔にもどす
     el.moyamoyaEl.style.display = '';
     el.moyamoyaEl.style.opacity = '1';
+
+    // にじいろ雲（クリア後の世界・2周目以降のみ。2026-07-30 バランス改修）
+    runtime.isRainbowCloud = rollRainbowCloud();
+    el.moyamoyaEl.classList.toggle('rainbow-cloud', runtime.isRainbowCloud);
+    if (runtime.isRainbowCloud && !state.rainbowCloudSeen) {
+      state.rainbowCloudSeen = true;
+      addJournalEntry('🌈 にじいろ雲に出会った');
+    }
   }
 
   // 浄化の瞬間：困り顔→笑顔に切り替え＋「ぽん」＋キラキラ→少し見せる→ふわっとフェードアウト（この最後の段が旧来の消える処理）
@@ -4830,18 +4910,21 @@
 
   function resolveCloud() {
     const stats = computeStats();
-    const sasaGain = Math.round(rand(BALANCE.sasaRewardMin, BALANCE.sasaRewardMax) * stats.sasaMult * stats.journeyMult);
+    const isRainbow = !!runtime.isRainbowCloud; // にじいろ雲：ゲージ・笹だけ倍率がかかる（2026-07-30 バランス改修）
+    const sasaGain = Math.round(rand(BALANCE.sasaRewardMin, BALANCE.sasaRewardMax) * stats.sasaMult * stats.journeyMult * (isRainbow ? BALANCE.rainbowCloudSasaMult : 1));
     const powerGain = Math.round(rand(BALANCE.powerRewardMin, BALANCE.powerRewardMax) * stats.purifyMult * stats.journeyMult);
+    const gaugeGain = gaugePerCloud(stats) * (isRainbow ? BALANCE.rainbowCloudGaugeMult : 1);
     state.sasa += sasaGain;
     state.pandaPower += powerGain;
     showPop('+' + powerGain + ' パンダさんパワー!');
+    showGaugePop(gaugeGain, isRainbow);
     playCloudPurifyVisual();
 
     runtime.cloudState = 'idle';
     const interval = rand(BALANCE.cloudIntervalMin, BALANCE.cloudIntervalMax) / stats.speedMult;
     runtime.nextSpawnAt = Date.now() + interval;
 
-    advanceTownGauge(1);
+    advanceTownGauge(1, gaugeGain);
     bumpMemoriesForCloudsResolved(1);
     maybeDropItem(stats);
 
@@ -4856,7 +4939,7 @@
     runtime.bossDecay.lastAt = now;
     if (elapsed <= 0) return;
     const stats = computeStats();
-    const justWon = applyBossPassiveDecay(stats.purifyMult, elapsed);
+    const justWon = applyBossPassiveDecay(stats.purifyMult, elapsed, stats.totalPower);
     if (justWon.length) {
       const wins = justWon.map(function (a) { return grantBossWin(a); });
       saveState();
