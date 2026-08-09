@@ -37,9 +37,13 @@
     color: var(--dark);
     word-break: keep-all;
     overflow-wrap: anywhere;
+    text-wrap: pretty;              /* 最終行に1語だけ落ちるのを防ぐ */
     display: flex; justify-content: center;
     min-height: 100vh;
   }
+  /* 日本語の改行4点セット（japanese-line-breaks スキル準拠。keep-all＋overflow-wrap＋BudouX＋.nb） */
+  h1, h2, h3, h4 { text-wrap: balance; }
+  .nb { white-space: nowrap; }      /* 絶対に割りたくない語を個別に守る */
   .bezel { width: 100%; max-width: 420px; }
   .phone {
     width: 100%;
@@ -878,6 +882,7 @@
       <section class="card" id="welcomeCard">
         <h2>🐼 きょうも旅のとちゅう</h2>
         <p>もやもや雲を見つけたら、キャラバンが自動で笑顔にしてくれるよ。見てるだけでOK！</p>
+        <button class="btn" id="tutorialReplayBtn" style="margin-top:8px;">🎓 あそびかたを もういちど</button>
       </section>
 
       <section class="card share-card">
@@ -1941,6 +1946,10 @@
       snaps: [],         // 旅のスナップ（記念アルバム・レシピのみ保存。最大60件・古い順自動削除）
       journeyCount: 1,   // 転生（あたらしい旅路）の周回数。企画書.md§4-6・Trimps方式の恒久ボーナス
       rainbowCloudSeen: false, // にじいろ雲に初めて出会ったか（旅日記への初回記録の重複防止。2026-07-30 バランス改修）
+      // ── はじめての人の案内（tutorial.js・2026-07-31追加） ──
+      tutorialDone: false,  // 案内が終わったか（初回だけ自動で始まる。🎓ボタンでいつでも見返せる）
+      tutorialStep: 0,      // 途中で閉じたときに、つづきから案内するための位置
+      tutorialFree10: 0,    // 案内中の「10連むりょう券」の残り
     };
   }
   let state = null;
@@ -3435,7 +3444,9 @@
   function renderGachaPanel() {
     const cost = currentGachaCost();
     el.gachaPullBtn.textContent = '🎋 笹をおく（笹 ' + fmt(cost) + '）';
-    el.gacha10PullBtn.textContent = '🎋 10れんで おむかえ（笹 ' + fmt(currentGacha10Cost()) + '）';
+    el.gacha10PullBtn.textContent = (state.tutorialFree10 || 0) > 0
+      ? '🎋 10れんで おむかえ（いまは むりょう！）'   // 案内中の1回だけ
+      : '🎋 10れんで おむかえ（笹 ' + fmt(currentGacha10Cost()) + '）';
     if (state.ticket > 0) {
       el.ticketText.style.display = '';
       el.ticketText.textContent = '✉️ おさそいの手紙 ×' + state.ticket + '（1回ぶん無料！）';
@@ -4709,9 +4720,12 @@
   // 10連ガチャ：コスト逓増は単発と同じ式で10段階ぶん先取りする。10枠目だけSR以上確定（SR/SSR/URを比率のまま正規化して抽選）
   function pullGacha10() {
     resetGachaDayIfNeeded();
-    const cost = currentGacha10Cost();
+    // 案内（チュートリアル）中の1回だけは笹をつかわない。はじめての人がいきなり足りなくて詰まらないように
+    const isFree = (state.tutorialFree10 || 0) > 0;
+    const cost = isFree ? 0 : currentGacha10Cost();
     if (state.sasa < cost) { showToast('🎋 笹が足りないみたい…'); return; }
     state.sasa -= cost;
+    if (isFree) state.tutorialFree10--;
 
     const guaranteedSum = BALANCE.rosterRates.SR + BALANCE.rosterRates.SSR + BALANCE.rosterRates.UR;
     const guaranteedRates = {
@@ -5325,10 +5339,17 @@
       }
       playOpening();
     });
+    applyBudouxToProse();
+
+    const tutorialBtn = document.getElementById('tutorialReplayBtn');
+    if (tutorialBtn) tutorialBtn.addEventListener('click', function () { startTutorial(true); });
+
     if (!state.opShown) {
       state.opShown = true;
       saveState();
-      playOpening();
+      playOpening(maybeStartTutorial);   // OPを見おわってから案内をはじめる
+    } else {
+      maybeStartTutorial();              // OPをスキップした人・途中で閉じた人もここで拾う
     }
   }
 
@@ -5363,10 +5384,95 @@
     ov.addEventListener('pointerdown', startBgm, { once: true });
   }
 
+  /* ============================================================
+   * はじめての人の案内（本体は tutorial.js。ここは受け口だけ）
+   * 「放置ゲームをしたことがなくて何をしたらいいか分からなかった」という声から。
+   * 詳しい流れは チュートリアル設計.md
+   * ============================================================ */
+  /* 日本語の改行（japanese-line-breaks スキル）：
+     カードの説明文を <budoux-ja> でくるんで、文節の切れ目でだけ折り返るようにする。
+     ふきだしと同じ仕組み。中身をJSで書きかえても効き直すので、貼るのは起動時の1回でよい。 */
+  function applyBudouxToProse() {
+    if (!window.customElements || !customElements.get('budoux-ja')) return; // 読めなかった時はCSSのkeep-allだけで動く
+    document.querySelectorAll('.card p, .tips-note').forEach(function (p) {
+      if (p.querySelector('budoux-ja')) return;
+      const wrap = document.createElement('budoux-ja');
+      while (p.firstChild) wrap.appendChild(p.firstChild);
+      p.appendChild(wrap);
+    });
+  }
+
+  function grantFreeGacha10() {
+    state.tutorialFree10 = 1;
+    renderGachaPanel();
+    saveState();
+  }
+
+  // 案内がタブを開く（このゲームは 旅／編成／ガチャ… のタブ制なので、
+  // 目的のボタンが乗っているタブを先に開かないと「見えないボタンを押して」と言うことになる）
+  function showTab(name) {
+    const btn = document.querySelector('nav button[data-tab="' + name + '"]');
+    if (btn) btn.click();
+  }
+
+  // 旅道具を3枠ぶんプレゼントする。generateItemは種類がランダムなので、
+  // ほしい枠のものが出るまで引き直す（回数で必ず打ち切る＝止まらなくならないように）
+  function grantStarterItems() {
+    const stats = computeStats();
+    ['kaburimono', 'mantle', 'omamori'].forEach(function (slot) {
+      let item = null;
+      for (let i = 0; i < 40 && !item; i++) {
+        const cand = generateItem(stats.hasHanamaru, 'suteki');
+        if (cand.slot === slot) item = cand;
+      }
+      if (!item) return;
+      item.newFlag = computeIsNew(item);
+      addItemToInventory(item);
+      state.lastDrop = item;
+    });
+    saveState();
+    renderAll();
+  }
+
+  // 案内のさいごの「なまえとあいことば」。すでにある記録は上書きしない（別のなまえを促す）
+  async function tutorialCloudConnect(name, secret) {
+    try {
+      const hash = await CloudSync.hashSecret(name, secret);
+      const remote = await CloudSync.pull(name, hash);
+      if (remote) return { ok: false, msg: 'そのなまえと あいことばの 記録が もうあるよ。ちがう なまえに してみてね。' };
+      CloudSync.saveCred(name, hash);
+      await CloudSync.pushNow(state);
+      renderCloudPanel();
+      addJournalEntry('☁️ ' + name + 'さんの 旅がはじまった');
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, msg: 'つながらなかったよ…あとで ☁️クラウドセーブ からも とうろくできるよ。' };
+    }
+  }
+
+  function startTutorial(fromStart) {
+    if (!window.SasatomoTutorial) return;
+    SasatomoTutorial.start({
+      getState: function () { return state; },
+      saveState: saveState,
+      renderAll: renderAll,
+      grantFreeGacha10: grantFreeGacha10,
+      grantStarterItems: grantStarterItems,
+      cloudConnect: tutorialCloudConnect,
+      showTab: showTab,
+    }, { fromStart: !!fromStart });
+  }
+
+  // 初回だけ自動で始める（OPを見おわった直後）。2回目以降は🎓ボタンから
+  function maybeStartTutorial() {
+    if (!state.tutorialDone) startTutorial(false);
+  }
+
   /** OPを流す。ヘッダーの🎬からいつでも見られる */
-  function playOpening() {
+  function playOpening(onDone) {
     const ov = document.getElementById('opOverlay');
-    if (!ov || !window.SasatomoOP) return;
+    // OPが読めなかったときも、案内（初回チュートリアル）だけは必ず始める＝はじめての人を置き去りにしない
+    if (!ov || !window.SasatomoOP) { if (onDone) onDone(); return; }
     ov.classList.add('on');
 
     // ゲームのBGMが鳴っていたら、OPのあいだは止めて、終わったら元に戻す。
@@ -5381,6 +5487,7 @@
         ov.classList.remove('on');
         if (window.OpBgm) OpBgm.stop();
         if (gameBgmWasOn) bgmBtn.click();
+        if (onDone) onDone();   // 初回はこのあと「はじめての人の案内」が始まる
       }
     });
 
@@ -5528,6 +5635,8 @@
     openAutoFormationSheet: openAutoFormationSheet,
     closeAutoFormationSheet: closeAutoFormationSheet,
     getLastAutoMode: function () { return lastAutoMode; },
+    startTutorial: startTutorial,
+    grantStarterItems: grantStarterItems,
   };
 
   window.addEventListener('DOMContentLoaded', function () { init(); });
@@ -5537,6 +5646,9 @@
 <script src="op-bgm.js"></script>
 <script src="clear.js"></script>
 <script src="clear-bgm.js"></script>
+<script src="tutorial.js"></script>
+<!-- BudouX（Google・Apache-2.0）：日本語を文節の切れ目でだけ折り返す。<budoux-ja>で囲んだ範囲に効く -->
+<script src="budoux-ja.min.js"></script>
 <script>
   // PWA: サービスワーカー登録（https配信時のみ。file://での開発時は何もしない）
   if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
