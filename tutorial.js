@@ -105,6 +105,7 @@
    *            目的のボタンが乗っているタブを先に開く。これを忘れると「見えないボタンを押して」になる）
    *   target … スポットライトを当てる要素（CSSセレクタ。nullなら画面全体を暗くするだけ）
    *   hint   … 操作してもらうステップの指示文（これがある＝「つぎへ」を出さない）
+   *   altLabel … 操作しなくても先へ進める、もう1つのボタンの文言（詰まらせないための逃げ道）
    *   watch  … 操作の結果を表す値。ステップに入った時の値から「変わったら」次へ進む。
    *            絶対条件（例：装備が付いているか）にすると、すでに装備ずみの人が
    *            🎓で見返したときに一瞬で飛んでしまうため、変化で見る。
@@ -117,6 +118,19 @@
             'この旅の ' + nb('あそびかた') + 'を、' + nb('いっしょに') + ' やってみよう。' +
             nb('すぐおわるよ') + '！',
       target: null,
+    },
+    {
+      // 音は「最初から鳴らす」と びっくりさせるので、本人に つけてもらう（ブラウザの自動再生制限の面でも、
+      // 本人のタップで鳴らすのがいちばん確実）。iPhoneはマナーモードだと そもそも音が出ないので先に伝える
+      text: 'この旅には 音楽と 音が あるんだ🎵<br>' +
+            '右上の 🎵 を おすと 鳴りはじめるよ。<br>' +
+            '<b>iPhone</b> の人は、本体よこの ' + nb('マナーモード') + ' の<br>' +
+            'スイッチが 入っていると 音が出ないから、<br>' +
+            'そこも ' + nb('見てみて') + 'ね。',
+      target: '#bgmToggleBtn',
+      hint: '👆 右上の 🎵 を おしてみてね',
+      watch: function () { return api.isBgmOn ? api.isBgmOn() : true; },
+      altLabel: '🔇 音なしで つづける',
     },
     {
       text: 'この世界には ' + nb('もやもや雲') + ' がいるんだ。<br>' +
@@ -316,6 +330,14 @@
     if (s.hint) {
       // 操作してもらうステップ：「つぎへ」は出さず、実際にできたかを見はる
       extra.innerHTML = '<div class="t-hint">' + s.hint + '</div>';
+      // 押さずに先へ進める逃げ道（音を出せない人・出したくない人が詰まらないように）
+      if (s.altLabel) {
+        var alt = document.createElement('button');
+        alt.className = 't-next';
+        alt.textContent = s.altLabel;
+        alt.addEventListener('click', next);
+        btns.appendChild(alt);
+      }
       addSkipButton(btns);
       var baseline = null;
       try { baseline = s.watch(); } catch (e) {}
