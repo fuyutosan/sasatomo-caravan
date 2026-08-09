@@ -5460,6 +5460,7 @@
       grantStarterItems: grantStarterItems,
       cloudConnect: tutorialCloudConnect,
       showTab: showTab,
+      isBgmOn: function () { return !!(el.bgmToggleBtn && el.bgmToggleBtn.classList.contains('on')); },
     }, { fromStart: !!fromStart });
   }
 
