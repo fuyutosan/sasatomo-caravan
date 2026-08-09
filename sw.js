@@ -1,10 +1,12 @@
 // 笹友キャラバン — オフライン対応サービスワーカー（充電器v2方式）
 // index.html はネットワーク優先（更新が即届く）、失敗時だけキャッシュ
-const CACHE = 'sasatomo-caravan-v12'; // v12: 馬車グレードアップ画像(wagon_lv2/3/4.png)を追加 // v11: もやもや雲の笑顔画像(moyamoya_smile.png)を追加 // v9: R/N個別画像を追加 // v8: SR6体＋たいちょうの個別画像を追加 // v5: 絵巻マップ（house.pngを追加。v4は欠番）
+const CACHE = 'sasatomo-caravan-v13'; // v13: チュートリアル(tutorial.js)とBudouX(budoux-ja.min.js)を追加 // v12: 馬車グレードアップ画像(wagon_lv2/3/4.png)を追加 // v11: もやもや雲の笑顔画像(moyamoya_smile.png)を追加 // v9: R/N個別画像を追加 // v8: SR6体＋たいちょうの個別画像を追加 // v5: 絵巻マップ（house.pngを追加。v4は欠番）
 const ASSETS = [
   './',
   './index.html',
   './manifest.webmanifest',
+  './tutorial.js',
+  './budoux-ja.min.js',
   './icon-192.png',
   './icon-512.png',
   './icon-512-maskable.png',
