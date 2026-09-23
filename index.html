@@ -15,8 +15,8 @@
 <meta property="og:title" content="笹友キャラバン">
 <meta property="og:description" content="パンダさんたちが世界に元気を配る、ドット×放置ゲーム。るすばん中もキャラバンは旅を続けるよ🎋">
 <!-- og:imageはXがURL単位で長期キャッシュするため、絵を差し替えるときは必ずファイル名も変える（ogp2→ogp3…）2026-07-31 -->
-<meta property="og:image" content="https://fuyutosan.github.io/sasatomo-caravan/ogp2.png">
-<meta property="og:url" content="https://fuyutosan.github.io/sasatomo-caravan/">
+<meta property="og:image" content="https://sasatomo-caravan.pages.dev/ogp2.png">
+<meta property="og:url" content="https://sasatomo-caravan.pages.dev/">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
 <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
@@ -2269,7 +2269,7 @@
     if (!currentSnapCanvas || !currentSnapRecipe) return;
     const headline = snapHeadline(currentSnapRecipe);
     const shareText = '📸 ' + headline + '\n#笹友キャラバン';
-    const gameUrl = 'https://fuyutosan.github.io/sasatomo-caravan/';
+    const gameUrl = 'https://sasatomo-caravan.pages.dev/';
 
     // navigator.share/canShare が無い環境（PCブラウザなど）では、awaitを挟まず即フォールバックする。
     // canvas.toBlob()のawaitをここより前に挟むと、クリックのユーザー操作が切れてwindow.openがブロックされてしまうため。
@@ -4065,7 +4065,7 @@
     ctx.textAlign = 'right';
     ctx.font = Math.round(16 * s) + "px 'DotGothic16', sans-serif";
     ctx.fillStyle = 'rgba(255,255,255,.9)';
-    ctx.fillText('🐼 笹友キャラバン　https://fuyutosan.github.io/sasatomo-caravan/', w - 20 * s, h - 16 * s);
+    ctx.fillText('🐼 笹友キャラバン　https://sasatomo-caravan.pages.dev/', w - 20 * s, h - 16 * s);
   }
 
   async function renderZukanCard(w, h) {
@@ -4122,7 +4122,7 @@
   async function shareZukanCard() {
     if (!currentZukanCanvas) return;
     const shareText = buildZukanShareText();
-    const gameUrl = 'https://fuyutosan.github.io/sasatomo-caravan/';
+    const gameUrl = 'https://sasatomo-caravan.pages.dev/';
 
     if (!navigator.share || !navigator.canShare) { shareZukanFallback(shareText, gameUrl); return; }
 
@@ -4247,7 +4247,7 @@
     ctx.textAlign = 'right';
     ctx.font = Math.round(16 * s) + "px 'DotGothic16', sans-serif";
     ctx.fillStyle = 'rgba(255,255,255,.9)';
-    ctx.fillText('🐼 笹友キャラバン　https://fuyutosan.github.io/sasatomo-caravan/', w - 20 * s, h - 16 * s);
+    ctx.fillText('🐼 笹友キャラバン　https://sasatomo-caravan.pages.dev/', w - 20 * s, h - 16 * s);
   }
 
   // 10連のシェアカード：10体を5列×2行のグリッドで（ずかんカードのグリッド計算式を流用）＋最高レアの子だけ一回り大きく光る枠で強調
@@ -4321,7 +4321,7 @@
     ctx.textAlign = 'right';
     ctx.font = Math.round(16 * s) + "px 'DotGothic16', sans-serif";
     ctx.fillStyle = 'rgba(255,255,255,.9)';
-    ctx.fillText('🐼 笹友キャラバン　https://fuyutosan.github.io/sasatomo-caravan/', w - 20 * s, h - 12 * s);
+    ctx.fillText('🐼 笹友キャラバン　https://sasatomo-caravan.pages.dev/', w - 20 * s, h - 12 * s);
   }
 
   async function renderGachaShareCardSingle(chosen, rarity, isNew, awakenLv, w, h) {
@@ -4375,14 +4375,14 @@
   }
   function shareGachaShareFallback() {
     downloadGachaShareCard();
-    const gameUrl = 'https://fuyutosan.github.io/sasatomo-caravan/';
+    const gameUrl = 'https://sasatomo-caravan.pages.dev/';
     shareToX(currentGachaShareText, gameUrl);
     showToast('がぞうを ぽすとに そえてね');
   }
   async function shareGachaShareCard() {
     if (!currentGachaShareCanvas) return;
     const shareText = currentGachaShareText;
-    const gameUrl = 'https://fuyutosan.github.io/sasatomo-caravan/';
+    const gameUrl = 'https://sasatomo-caravan.pages.dev/';
 
     if (!navigator.share || !navigator.canShare) { shareGachaShareFallback(); return; }
 
@@ -4468,7 +4468,7 @@
   }
   function updateShareLink() {
     if (!el.xShareBtn) return;
-    const gameUrl = 'https://fuyutosan.github.io/sasatomo-caravan/';
+    const gameUrl = 'https://sasatomo-caravan.pages.dev/';
     // hrefはJS無効時やmiddle-click等のフォールバック用にweb intentのまま残す。実際のクリックはbindUIEventsのハンドラがshareToX経由に差し替える
     el.xShareBtn.href = 'https://x.com/intent/post?text=' + encodeURIComponent(buildShareText()) + '&url=' + encodeURIComponent(gameUrl);
   }
@@ -5239,7 +5239,7 @@
     // hrefはフォールバック用に残しつつ、クリック自体はshareToX（アプリ優先→web版フォールバック）に差し替える
     el.xShareBtn.addEventListener('click', function (ev) {
       ev.preventDefault();
-      const gameUrl = 'https://fuyutosan.github.io/sasatomo-caravan/';
+      const gameUrl = 'https://sasatomo-caravan.pages.dev/';
       shareToX(buildShareText(), gameUrl);
     });
 
