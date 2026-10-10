@@ -1197,7 +1197,7 @@
     gachaCostGrowth: 1.05, // 1.08→1.05（100連目が約2万笹＝5桁に収まり、成長ぶんが引ける回数に反映されるように調整。2026-07-25 実測にもとづく再設計）
     rosterRates: { N: 0.55, R: 0.30, SR: 0.11, SSR: 0.035, UR: 0.005 },
     baseStatByRarity: { N: 100, R: 160, SR: 260, SSR: 420, UR: 700 },
-    // 覚醒はレア別の上限＋伸び率（2026-07-25 ふゆとさん追加案：低レアほど伸びしろが大きい＝好きな子を育てて冒険できる）
+    // 覚醒はレア別の上限＋伸び率（2026-07-25 追加案：低レアほど伸びしろが大きい＝好きな子を育てて冒険できる）
     // 覚醒MAX時の基礎総合力の目安：N 100→420／R 160→560／SR 260→572／SSR 420→630／UR 700→1050
     awakenMaxByRarity: { N: 10, R: 10, SR: 10, SSR: 5, UR: 5 },
     awakenBonusByRarity: { N: 0.32, R: 0.25, SR: 0.12, SSR: 0.10, UR: 0.10 },
@@ -1510,7 +1510,7 @@
     }
 
     /* ============================================================
-     * アレンジ3トラック（bgm_arrange.html・ふゆとさん3曲とも承認済みをそのまま移植）
+     * アレンジ3トラック（bgm_arrange.html・3曲とも承認済みをそのまま移植）
      * 参考: C:\Users\pikap\Claude\cowork\mei-panda-hisho\sasatomo-caravan\bgm_arrange.html
      * ============================================================ */
 
@@ -2663,7 +2663,7 @@
     if (cleared >= 3) return 2;
     return 1;
   }
-  // 馬車Lvに応じた画像パス（Lv1〜4はふゆとさん用意の本物の馬車画像）。旅シーンの幌馬車・絵巻マップの現在地マーカーの両方で使う
+  // 馬車Lvに応じた画像パス（Lv1〜4は本物の馬車画像）。旅シーンの幌馬車・絵巻マップの現在地マーカーの両方で使う
   const WAGON_IMG_BY_LV = { 1: 'assets/scene/wagon.png', 2: 'assets/scene/wagon_lv2.png', 3: 'assets/scene/wagon_lv3.png', 4: 'assets/scene/wagon_lv4.png' };
   function wagonImageSrc(lv) {
     return WAGON_IMG_BY_LV[lv] || WAGON_IMG_BY_LV[1];
@@ -3906,7 +3906,7 @@
   function closeCharZoom() { el.charZoomOverlay.style.display = 'none'; el.charZoomImg.src = ''; }
 
   /* ============================================================
-   * なかまずかんシェアカード（展望アイデア帳・ふゆとさん発案「誰持ってる？」の見せ合いっこ）
+   * なかまずかんシェアカード（展望アイデア帳・「誰持ってる？」の見せ合いっこ）
    * スナップと同じ「毎回canvasで描き直す・画像は保存しない」方針を流用する
    * ============================================================ */
   const ZUKAN_SILHOUETTE_CACHE = {};
@@ -4502,7 +4502,7 @@
    * ============================================================ */
   function awakenCapFor(rarity) { return BALANCE.awakenMaxByRarity[rarity] || 10; }
 
-  // 覚醒レア別上限の移行（2026-07-25 ふゆとさん追加案で導入）：
+  // 覚醒レア別上限の移行（2026-07-25 追加案で導入）：
   // それ以前の一律仕様で育っていて新しいレア別上限を超えている子がいたら、上限にクランプしつつ
   // 減った分を「覚醒MAX後の被り」と同じ計算式（笹＆おむかえpt×2）で補填する（プレイヤーが損をしないように）
   function migrateAwakenCaps() {

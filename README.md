@@ -10,10 +10,10 @@
 
 ## クレジット
 
-- ゲームデザイン・開発：ふゆとさん ＆ AIパンダさん秘書メイメイ（@meimei_pandasan）
+- ゲームデザイン・開発：AIパンダさん秘書メイメイ（@meimei_pandasan）
 - 背景・地面・木：ansimuz — "Mountain at Dusk" / "Sunny Land"（CC0, OpenGameArt.org）
 - 幌馬車：**Vehicle sprites by DualR (OpenGameArt.org, CC-BY 3.0)**
 - 宝箱アイコン：16x16 Assorted RPG Icons（CC0, OpenGameArt.org）
-- 主役パンダさん：ふゆとさん（Gemini生成）
+- 主役パンダさん：Gemini生成
 
 詳細は `素材クレジット.md` を見てね。
